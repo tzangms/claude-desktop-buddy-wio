@@ -10,7 +10,7 @@ static constexpr const char* NUS_RX_UUID =
 static constexpr const char* NUS_TX_UUID =
     "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
-static constexpr const char* DEVICE_NAME_PREFIX = "Claude-Wio-";
+static constexpr const char* DEVICE_NAME_PREFIX = "Claude-";
 
 // --- Timeouts (ms) ---
 static constexpr uint32_t HEARTBEAT_TIMEOUT_MS = 30000;
