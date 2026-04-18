@@ -1,5 +1,6 @@
 #include <unity.h>
 #include "state.h"
+#include "config.h"
 
 static AppState freshConnected() {
   AppState s;
@@ -90,8 +91,8 @@ void test_ack_expires_to_idle() {
 void test_heartbeat_timeout_disconnects() {
   AppState s = freshConnected();
   HeartbeatData hb; applyHeartbeat(s, hb, 0);
-  TEST_ASSERT_FALSE(applyTimeouts(s, 20000));
-  TEST_ASSERT_TRUE(applyTimeouts(s, 40000));
+  TEST_ASSERT_FALSE(applyTimeouts(s, HEARTBEAT_TIMEOUT_MS));       // at threshold, not yet
+  TEST_ASSERT_TRUE(applyTimeouts(s, HEARTBEAT_TIMEOUT_MS + 1));    // just past
   TEST_ASSERT_EQUAL(static_cast<int>(Mode::Disconnected),
                     static_cast<int>(s.mode));
 }
