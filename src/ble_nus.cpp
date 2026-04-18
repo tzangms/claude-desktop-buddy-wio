@@ -58,15 +58,16 @@ bool initBle(const std::string& nameSuffix, LineCallback onLine) {
 
   svc->start();
 
-  // Put the NUS service UUID in the PRIMARY advertising packet so central
-  // scanners filtering by service UUID (e.g. Claude Desktop's Hardware Buddy
-  // picker) see us. rpcBLE's default addServiceUUID() places the UUID in the
-  // scan response only, which some scanners don't fetch. Name goes in the
-  // scan response since Flags (3B) + 128-bit UUID (18B) + full name would
-  // exceed the 31-byte primary advertising budget.
+  // Primary: Flags (3B) + 128-bit service UUID (18B) + shortened name
+  // "Claude" (8B) = 29B, within the 31-byte budget. Central scanners that
+  // filter on either service UUID or name prefix in the primary packet
+  // will see us. Full device name goes in the scan response.
   BLEAdvertisementData advData;
   advData.setFlags(0x06);  // General Discoverable + BR/EDR not supported
   advData.setCompleteServices(BLEUUID(NUS_SERVICE_UUID));
+  // Shortened Local Name tag 0x08 signals "a longer name lives in scan resp".
+  const char shortNameAd[] = {7, 0x08, 'C', 'l', 'a', 'u', 'd', 'e'};
+  advData.addData(std::string(shortNameAd, sizeof(shortNameAd)));
 
   BLEAdvertisementData scanResp;
   scanResp.setName(name);
