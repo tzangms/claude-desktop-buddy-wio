@@ -57,9 +57,23 @@ bool initBle(const std::string& nameSuffix, LineCallback onLine) {
   rxChar->setCallbacks(new RxCB());
 
   svc->start();
+
+  // Put the NUS service UUID in the PRIMARY advertising packet so central
+  // scanners filtering by service UUID (e.g. Claude Desktop's Hardware Buddy
+  // picker) see us. rpcBLE's default addServiceUUID() places the UUID in the
+  // scan response only, which some scanners don't fetch. Name goes in the
+  // scan response since Flags (3B) + 128-bit UUID (18B) + full name would
+  // exceed the 31-byte primary advertising budget.
+  BLEAdvertisementData advData;
+  advData.setFlags(0x06);  // General Discoverable + BR/EDR not supported
+  advData.setCompleteServices(BLEUUID(NUS_SERVICE_UUID));
+
+  BLEAdvertisementData scanResp;
+  scanResp.setName(name);
+
   BLEAdvertising* adv = BLEDevice::getAdvertising();
-  adv->addServiceUUID(NUS_SERVICE_UUID);
-  adv->setScanResponse(true);
+  adv->setAdvertisementData(advData);
+  adv->setScanResponseData(scanResp);
   adv->start();
   Serial.print("BLE advertising as: "); Serial.println(name.c_str());
   return true;
