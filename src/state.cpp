@@ -1,0 +1,67 @@
+#include "state.h"
+#include "config.h"
+
+bool applyHeartbeat(AppState& s, const HeartbeatData& hb, uint32_t nowMs) {
+  Mode prev = s.mode;
+  std::string prevPromptId = s.hb.prompt.id;
+  s.hb = hb;
+  s.lastHeartbeatMs = nowMs;
+
+  if (hb.hasPrompt) {
+    s.mode = Mode::Prompt;
+  } else {
+    if (s.mode != Mode::Ack) {
+      s.mode = Mode::Idle;
+    }
+  }
+  return s.mode != prev || s.hb.prompt.id != prevPromptId;
+}
+
+bool applyOwner(AppState& s, const std::string& name) {
+  if (s.ownerName == name) return false;
+  s.ownerName = name;
+  return true;
+}
+
+bool applyDisconnect(AppState& s) {
+  if (s.mode == Mode::Disconnected) return false;
+  s.mode = Mode::Disconnected;
+  return true;
+}
+
+bool applyConnected(AppState& s) {
+  if (s.mode == Mode::Connected) return false;
+  s.mode = Mode::Connected;
+  return true;
+}
+
+bool applyButton(AppState& s, char button, uint32_t nowMs,
+                 PermissionDecision& out, std::string& outPromptId) {
+  if (s.mode != Mode::Prompt) return false;
+  if (button != 'A' && button != 'C') return false;
+  out = (button == 'A') ? PermissionDecision::Approve
+                        : PermissionDecision::Deny;
+  outPromptId = s.hb.prompt.id;
+  s.ackApproved = (button == 'A');
+  s.ackUntilMs = nowMs + ACK_DISPLAY_MS;
+  s.mode = Mode::Ack;
+  // Once a decision is sent, the current prompt is resolved locally.
+  // Clear so ACK expiration falls through to Idle until the next heartbeat.
+  s.hb.hasPrompt = false;
+  s.hb.prompt = PromptData{};
+  return true;
+}
+
+bool applyTimeouts(AppState& s, uint32_t nowMs) {
+  if (s.mode == Mode::Ack && nowMs >= s.ackUntilMs) {
+    s.mode = s.hb.hasPrompt ? Mode::Prompt : Mode::Idle;
+    return true;
+  }
+  bool live = (s.mode == Mode::Idle || s.mode == Mode::Prompt ||
+               s.mode == Mode::Ack);
+  if (live && (nowMs - s.lastHeartbeatMs) > HEARTBEAT_TIMEOUT_MS) {
+    s.mode = Mode::Disconnected;
+    return true;
+  }
+  return false;
+}
