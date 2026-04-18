@@ -73,25 +73,30 @@ void renderConnected() {
   tft.print("connected, waiting...");
 }
 
-void renderIdle(const AppState& s) {
-  clearAll();
+void renderIdle(const AppState& s, bool fullRedraw) {
+  // Full redraw only on mode transition; subsequent heartbeat updates
+  // skip the fillScreen clear to avoid a visible flash. Changing cells
+  // (numbers, msg, footer) use targeted fillRects so digit-count changes
+  // don't leave ghost pixels.
+  if (fullRedraw) {
+    clearAll();
+    drawHeader("Claude Buddy", COLOR_BG, COLOR_FG);
+    tft.fillCircle(SCREEN_W - 20, 14, 5, COLOR_OK);
+    tft.setTextColor(COLOR_DIM, COLOR_BG);
+    tft.setTextSize(1);
+    tft.setCursor(SCREEN_W - 100, 10);
+    tft.print("connected");
+    tft.setCursor(28, 50);   tft.print("Total");
+    tft.setCursor(130, 50);  tft.print("Running");
+    tft.setCursor(240, 50);  tft.print("Waiting");
+  }
 
-  drawHeader("Claude Buddy", COLOR_BG, COLOR_FG);
-  tft.fillCircle(SCREEN_W - 20, 14, 5, COLOR_OK);
-  tft.setTextColor(COLOR_DIM, COLOR_BG);
-  tft.setTextSize(1);
-  tft.setCursor(SCREEN_W - 100, 10);
-  tft.print("connected");
-
-  tft.setTextColor(COLOR_DIM, COLOR_BG);
-  tft.setTextSize(1);
-  tft.setCursor(28, 50);   tft.print("Total");
-  tft.setCursor(130, 50);  tft.print("Running");
-  tft.setCursor(240, 50);  tft.print("Waiting");
-
+  // Number cells — clear first so 2-digit→1-digit doesn't leave a ghost
+  // digit. Size 5 text is ~30px per char; allocate 90px per cell.
   tft.setTextColor(COLOR_FG, COLOR_BG);
   tft.setTextSize(5);
   auto drawNum = [](int x, int n) {
+    tft.fillRect(x, 65, 90, 50, COLOR_BG);
     char buf[8]; snprintf(buf, sizeof(buf), "%d", n);
     tft.setCursor(x, 70); tft.print(buf);
   };
@@ -99,12 +104,14 @@ void renderIdle(const AppState& s) {
   drawNum(148, s.hb.running);
   drawNum(258, s.hb.waiting);
 
+  // msg line
   tft.fillRect(0, 160, SCREEN_W, 20, COLOR_BG);
   tft.setTextColor(COLOR_FG, COLOR_BG);
   tft.setTextSize(1);
   tft.setCursor(8, 165);
   tft.print(s.hb.msg.c_str());
 
+  // footer
   if (!s.ownerName.empty()) {
     char buf[64];
     snprintf(buf, sizeof(buf), "Hi, %s", s.ownerName.c_str());

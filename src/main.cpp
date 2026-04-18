@@ -41,7 +41,7 @@ static void render(bool force) {
       renderAdvertising(n.c_str()); break;
     }
     case Mode::Connected:    renderConnected(); break;
-    case Mode::Idle:         renderIdle(appState); break;
+    case Mode::Idle:         renderIdle(appState, modeChanged); break;
     case Mode::Prompt:       renderPrompt(appState); break;
     case Mode::Ack:          renderAck(appState); break;
     case Mode::Disconnected: renderDisconnected(); break;
