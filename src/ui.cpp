@@ -131,11 +131,11 @@ void renderPrompt(const AppState& s) {
   tft.setTextColor(COLOR_FG, COLOR_BG);
   tft.setTextSize(2);
   std::string hint = s.hb.prompt.hint;
-  if (hint.size() > 26) { hint.resize(25); hint += "\xE2\x80\xA6"; }
+  if (hint.size() > 26) { hint.resize(23); hint += "..."; }
   tft.setCursor(16, 120);
   tft.print(hint.c_str());
 
-  tft.fillRect(0, SCREEN_H - 24, SCREEN_W, 24, 0x2104);
+  tft.fillRect(0, SCREEN_H - 24, SCREEN_W, 24, COLOR_FOOTER_BG);
   tft.setTextColor(COLOR_FG);
   tft.setTextSize(2);
   tft.setCursor(12, SCREEN_H - 20);

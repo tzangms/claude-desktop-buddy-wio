@@ -31,6 +31,7 @@ static constexpr uint16_t COLOR_OK         = 0x07E0;  // green
 static constexpr uint16_t COLOR_WARN       = 0xFD20;  // orange
 static constexpr uint16_t COLOR_ALERT_BG   = 0xC000;  // red
 static constexpr uint16_t COLOR_ALERT_TEXT = 0xFFFF;
+static constexpr uint16_t COLOR_FOOTER_BG  = 0x2104;  // near-black grey
 
 // --- Backlight ---
 static constexpr uint8_t BACKLIGHT_FULL = 255;
