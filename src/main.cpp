@@ -11,14 +11,17 @@ static Mode lastRenderedMode = Mode::BleInit;
 static std::string lastRenderedPromptId;
 static uint32_t lastButtonSendMs = 0;
 static uint32_t lastInteractionMs = 0;
+static volatile bool pendingRender = false;
+static std::string cachedSuffix;
 
 static std::string deviceSuffix() {
-  // SAMD51 has a 128-bit serial in the user row; last 16 bits give us a
-  // stable 4-hex suffix across reboots.
+  if (!cachedSuffix.empty()) return cachedSuffix;
+  // SAMD51 serial word 3 (0x008061FC); last 16 bits → 4-hex stable suffix.
   uint32_t id = *(volatile uint32_t*)0x008061FC;
   char buf[5];
   snprintf(buf, sizeof(buf), "%04X", (unsigned)(id & 0xFFFF));
-  return std::string(buf);
+  cachedSuffix = buf;
+  return cachedSuffix;
 }
 
 static void markInteraction(uint32_t now) {
@@ -49,6 +52,7 @@ static void render(bool force) {
 }
 
 static void onLine(const std::string& line) {
+  // Runs on the rpcBLE callback path — keep it cheap. Defer SPI to loop().
   uint32_t now = millis();
   ParsedMessage m = parseLine(line);
   switch (m.kind) {
@@ -58,10 +62,10 @@ static void onLine(const std::string& line) {
         applyConnected(appState);
       }
       applyHeartbeat(appState, m.heartbeat, now);
-      render(true);
+      pendingRender = true;
       break;
     case MessageKind::Owner:
-      if (applyOwner(appState, m.ownerName)) render(true);
+      if (applyOwner(appState, m.ownerName)) pendingRender = true;
       break;
     case MessageKind::Time:
     case MessageKind::Unknown:
@@ -90,6 +94,11 @@ void setup() {
 void loop() {
   uint32_t now = millis();
   pollBle();
+
+  if (pendingRender) {
+    pendingRender = false;
+    render(true);
+  }
 
   bool conn = isBleConnected();
   if (conn && appState.mode == Mode::Advertising) {
