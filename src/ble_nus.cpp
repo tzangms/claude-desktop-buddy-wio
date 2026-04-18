@@ -30,7 +30,10 @@ class RxCB : public BLECharacteristicCallbacks {
       rxBuf.erase(0, pos + 1);
       if (onLineCb) onLineCb(line);
     }
-    if (rxBuf.size() > 8192) rxBuf.clear();
+    if (rxBuf.size() > 8192) {
+      Serial.println("[BLE] rx overflow, clearing buffer");
+      rxBuf.clear();
+    }
   }
 };
 
