@@ -5,6 +5,7 @@ TFT_eSPI tft;
 
 void setup() {
   Serial.begin(115200);
+  while (!Serial && millis() < 3000) {}  // wait briefly for USB CDC enumeration
   pinMode(LCD_BACKLIGHT, OUTPUT);
   digitalWrite(LCD_BACKLIGHT, HIGH);
   tft.begin();
