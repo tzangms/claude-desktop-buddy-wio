@@ -41,6 +41,7 @@ bool initBle(const std::string& nameSuffix, LineCallback onLine) {
   onLineCb = onLine;
   std::string name = std::string(DEVICE_NAME_PREFIX) + nameSuffix;
   BLEDevice::init(name);
+
   BLEServer* server = BLEDevice::createServer();
   server->setCallbacks(new ServerCB());
   BLEService* svc = server->createService(NUS_SERVICE_UUID);
@@ -58,23 +59,12 @@ bool initBle(const std::string& nameSuffix, LineCallback onLine) {
 
   svc->start();
 
-  // Primary: Flags (3B) + 128-bit service UUID (18B) + shortened name
-  // "Claude" (8B) = 29B, within the 31-byte budget. Central scanners that
-  // filter on either service UUID or name prefix in the primary packet
-  // will see us. Full device name goes in the scan response.
-  BLEAdvertisementData advData;
-  advData.setFlags(0x06);  // General Discoverable + BR/EDR not supported
-  advData.setCompleteServices(BLEUUID(NUS_SERVICE_UUID));
-  // Shortened Local Name tag 0x08 signals "a longer name lives in scan resp".
-  const char shortNameAd[] = {7, 0x08, 'C', 'l', 'a', 'u', 'd', 'e'};
-  advData.addData(std::string(shortNameAd, sizeof(shortNameAd)));
-
-  BLEAdvertisementData scanResp;
-  scanResp.setName(name);
-
+  // Match the reference M5StickC firmware's advertising config exactly.
   BLEAdvertising* adv = BLEDevice::getAdvertising();
-  adv->setAdvertisementData(advData);
-  adv->setScanResponseData(scanResp);
+  adv->addServiceUUID(NUS_SERVICE_UUID);
+  adv->setScanResponse(true);
+  adv->setMinPreferred(0x06);   // iOS-friendly connection interval
+  adv->setMaxPreferred(0x12);
   adv->start();
   Serial.print("BLE advertising as: "); Serial.println(name.c_str());
   return true;
