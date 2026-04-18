@@ -10,7 +10,7 @@ ParsedMessage parseLine(const std::string& line) {
     return m;
   }
 
-  if (doc.containsKey("total")) {
+  if (doc.containsKey("total") && !doc.containsKey("cmd")) {
     m.kind = MessageKind::Heartbeat;
     m.heartbeat.total   = doc["total"]   | 0;
     m.heartbeat.running = doc["running"] | 0;
