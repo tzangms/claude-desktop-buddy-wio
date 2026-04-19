@@ -37,8 +37,11 @@ struct AppState {
   Mode mode = Mode::BleInit;
   HeartbeatData hb;
   std::string ownerName;
+  std::string deviceName;
+  int64_t     timeEpoch = 0;
+  int32_t     timeOffsetSec = 0;
+  uint32_t    timeSetAtMs = 0;
   uint32_t lastHeartbeatMs = 0;
-  // ACK display state
   bool ackApproved = false;
   uint32_t ackUntilMs = 0;
 };
@@ -58,3 +61,10 @@ bool applyButton(AppState& s, char button, uint32_t nowMs,
 
 // Returns true if mode changed. Call every loop.
 bool applyTimeouts(AppState& s, uint32_t nowMs);
+
+// Update deviceName in-memory. Rejects empty; truncates to NAME_CHARS_MAX.
+// Returns true if accepted, false if rejected. `err` is set on rejection.
+bool applyNameCmd(AppState& s, const std::string& name, std::string& err);
+
+// Store time sync (epoch + tz offset + local millis stamp). Returns true.
+bool applyTime(AppState& s, int64_t epoch, int32_t offsetSec, uint32_t nowMs);

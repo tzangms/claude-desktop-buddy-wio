@@ -65,3 +65,21 @@ bool applyTimeouts(AppState& s, uint32_t nowMs) {
   }
   return false;
 }
+
+bool applyNameCmd(AppState& s, const std::string& name, std::string& err) {
+  if (name.empty()) {
+    err = "empty name";
+    return false;
+  }
+  std::string n = name;
+  if (n.size() > NAME_CHARS_MAX) n.resize(NAME_CHARS_MAX);
+  s.deviceName = std::move(n);
+  return true;
+}
+
+bool applyTime(AppState& s, int64_t epoch, int32_t offsetSec, uint32_t nowMs) {
+  s.timeEpoch = epoch;
+  s.timeOffsetSec = offsetSec;
+  s.timeSetAtMs = nowMs;
+  return true;
+}
