@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "character.h"
 #include "config.h"
 #include "persist.h"
 #include "pet.h"
@@ -88,11 +89,12 @@ void renderIdle(const AppState& s, bool fullRedraw) {
     tft.setTextSize(1);
     tft.setCursor(SCREEN_W - 100, 10);
     tft.print("connected");
-    tft.setCursor(8, 36);                tft.print("Level");
+    // Labels shifted right of the 96-wide buddy slot at BUDDY_X.
+    tft.setCursor(112, 36);              tft.print("Level");
     tft.setCursor(SCREEN_W - 120, 36);   tft.print("Tokens today");
-    tft.setCursor(28, 66);   tft.print("Total");
-    tft.setCursor(130, 66);  tft.print("Running");
-    tft.setCursor(240, 66);  tft.print("Waiting");
+    tft.setCursor(116, 66);              tft.print("Total");
+    tft.setCursor(182, 66);              tft.print("Running");
+    tft.setCursor(252, 66);              tft.print("Waiting");
     // Invalidate caches so every block repaints on the fresh canvas.
     lastLvl = INT32_MIN; lastTokens = INT64_MIN;
     lastTotal = INT32_MIN; lastRunning = INT32_MIN; lastWaiting = INT32_MIN;
@@ -102,12 +104,12 @@ void renderIdle(const AppState& s, bool fullRedraw) {
 
   int32_t lvl = persistGet().lvl;
   if (lvl != lastLvl) {
-    tft.fillRect(8, 46, 60, 14, COLOR_BG);
+    tft.fillRect(112, 46, 60, 14, COLOR_BG);
     tft.setTextColor(COLOR_FG, COLOR_BG);
     tft.setTextSize(2);
     char buf[8];
     snprintf(buf, sizeof(buf), "L%d", lvl);
-    tft.setCursor(8, 46);
+    tft.setCursor(112, 46);
     tft.print(buf);
     lastLvl = lvl;
   }
@@ -130,35 +132,35 @@ void renderIdle(const AppState& s, bool fullRedraw) {
     lastTokens = tokens;
   }
 
-  // Size 5 ~30px per char; 90px per cell.
+  // size-3 digits: 18px wide × 24px tall. 3 cells fit in the right panel.
   auto drawNum = [](int x, int n) {
-    tft.fillRect(x, 80, 90, 40, COLOR_BG);
+    tft.fillRect(x, 80, 54, 28, COLOR_BG);
     tft.setTextColor(COLOR_FG, COLOR_BG);
-    tft.setTextSize(5);
+    tft.setTextSize(3);
     char buf[8]; snprintf(buf, sizeof(buf), "%d", n);
     tft.setCursor(x, 82); tft.print(buf);
   };
-  if (s.hb.total   != lastTotal)   { drawNum(38,  s.hb.total);   lastTotal   = s.hb.total; }
-  if (s.hb.running != lastRunning) { drawNum(148, s.hb.running); lastRunning = s.hb.running; }
-  if (s.hb.waiting != lastWaiting) { drawNum(258, s.hb.waiting); lastWaiting = s.hb.waiting; }
+  if (s.hb.total   != lastTotal)   { drawNum(118, s.hb.total);   lastTotal   = s.hb.total; }
+  if (s.hb.running != lastRunning) { drawNum(186, s.hb.running); lastRunning = s.hb.running; }
+  if (s.hb.waiting != lastWaiting) { drawNum(254, s.hb.waiting); lastWaiting = s.hb.waiting; }
 
   if (s.hb.msg != lastMsg) {
-    tft.fillRect(0, 125, SCREEN_W, 14, COLOR_BG);
+    tft.fillRect(112, 125, SCREEN_W - 112, 14, COLOR_BG);
     tft.setTextColor(COLOR_FG, COLOR_BG);
     tft.setTextSize(1);
-    tft.setCursor(8, 128);
+    tft.setCursor(112, 128);
     tft.print(s.hb.msg.c_str());
     lastMsg = s.hb.msg;
   }
 
   // Transcript shrunk from 3 to 2 lines to make room for the pet.
   if (s.hb.entries != lastEntries) {
-    tft.fillRect(0, 145, SCREEN_W, 40, COLOR_BG);
+    tft.fillRect(112, 145, SCREEN_W - 112, 40, COLOR_BG);
     tft.setTextColor(COLOR_DIM, COLOR_BG);
     tft.setTextSize(1);
     size_t n = s.hb.entries.size() < 2 ? s.hb.entries.size() : 2;
     for (size_t i = 0; i < n; ++i) {
-      tft.setCursor(8, 148 + (int)i * 18);
+      tft.setCursor(112, 148 + (int)i * 18);
       tft.print(s.hb.entries[i].c_str());
     }
     lastEntries = s.hb.entries;
@@ -181,12 +183,15 @@ void renderIdle(const AppState& s, bool fullRedraw) {
       case PetState::Nap:       petColour = COLOR_DIM;      break;
       default:                  petColour = COLOR_OK;       break;
     }
-    tft.fillRect(120, 188, 80, 32, COLOR_BG);
+    // ASCII pet renders in the buddy slot. SP6b's characterTick paints
+    // over this on the same rect when characterReady(); ui.cpp doesn't
+    // need to know which path is active because both respect BUDDY_*.
+    tft.fillRect(BUDDY_X, BUDDY_Y, BUDDY_W, BUDDY_H, COLOR_BG);
     tft.setTextColor(petColour, COLOR_BG);
-    tft.setTextSize(1);
+    tft.setTextSize(2);   // bigger ASCII for the larger slot
     const char* const* rows = petFace(st, frame);
     for (size_t i = 0; i < PET_FACE_LINES; ++i) {
-      tft.setCursor(130, 188 + (int)i * 8);
+      tft.setCursor(BUDDY_X + 8, BUDDY_Y + 20 + (int)i * 16);
       tft.print(rows[i]);
     }
     lastPet = st;
