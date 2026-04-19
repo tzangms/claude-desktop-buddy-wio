@@ -54,3 +54,7 @@ static constexpr uint32_t PET_CELEBRATE_MS            = 3000;
 static constexpr uint32_t PET_HEART_MS                = 3000;
 static constexpr uint32_t PET_APPROVE_HEART_WINDOW_MS = 5000;
 static constexpr uint32_t PET_DIZZY_MS                = 2000;
+
+// --- SP4b.4 folder push transport ---
+static constexpr uint32_t CHAR_MAX_TOTAL_BYTES = 1800000;  // 1.8 MB per spec
+static constexpr uint32_t CHAR_MAX_FILE_BYTES  = 1000000;

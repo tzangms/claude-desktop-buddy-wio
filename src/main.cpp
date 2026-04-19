@@ -10,6 +10,7 @@
 #include "backlight.h"
 #include "persist.h"
 #include "pet.h"
+#include "xfer.h"
 
 static AppState appState;
 static Mode lastRenderedMode = Mode::BleInit;
@@ -96,6 +97,29 @@ static void onLine(const std::string& line) {
     case MessageKind::UnpairCmd:
       sendLine(formatAck("unpair", true));
       break;
+    case MessageKind::CharBegin:
+      sendLine(formatAck("char_begin",
+                         xferBeginChar(m.xferName.c_str(), m.xferTotal)));
+      break;
+    case MessageKind::FileBegin:
+      sendLine(formatAck("file",
+                         xferBeginFile(m.xferPath.c_str(), m.xferSize)));
+      break;
+    case MessageKind::Chunk: {
+      int64_t written = 0;
+      bool ok = xferChunk(m.xferChunk.c_str(), written);
+      sendLine(formatAckN("chunk", ok, written));
+      break;
+    }
+    case MessageKind::FileEnd: {
+      int64_t finalSize = 0;
+      bool ok = xferEndFile(finalSize);
+      sendLine(formatAckN("file_end", ok, finalSize));
+      break;
+    }
+    case MessageKind::CharEnd:
+      sendLine(formatAck("char_end", xferEndChar()));
+      break;
     case MessageKind::TurnEvent:
       break;
     case MessageKind::Unknown:
@@ -111,6 +135,7 @@ void setup() {
   initButtons();
   backlightInit();
   persistInit();
+  xferInit();
   if (persistGet().deviceName[0] == '\0') {
     std::string def = std::string(DEVICE_NAME_PREFIX) + deviceSuffix();
     persistSetDeviceName(def.c_str());
