@@ -142,6 +142,21 @@ void test_parse_heartbeat_no_entries_key() {
   TEST_ASSERT_TRUE(m.heartbeat.entries.empty());
 }
 
+void test_parse_heartbeat_tokens() {
+  std::string line =
+      R"({"total":1,"running":0,"waiting":0,"tokens":184502,"tokens_today":31200})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL_INT64(184502, m.heartbeat.tokens);
+  TEST_ASSERT_EQUAL_INT64(31200, m.heartbeat.tokens_today);
+}
+
+void test_parse_heartbeat_tokens_missing_defaults_zero() {
+  std::string line = R"({"total":1,"running":0,"waiting":0})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL_INT64(0, m.heartbeat.tokens);
+  TEST_ASSERT_EQUAL_INT64(0, m.heartbeat.tokens_today);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_parse_heartbeat_basic);
@@ -161,5 +176,7 @@ int main(int, char**) {
   RUN_TEST(test_parse_heartbeat_entries_truncate_count);
   RUN_TEST(test_parse_heartbeat_entries_truncate_chars);
   RUN_TEST(test_parse_heartbeat_no_entries_key);
+  RUN_TEST(test_parse_heartbeat_tokens);
+  RUN_TEST(test_parse_heartbeat_tokens_missing_defaults_zero);
   return UNITY_END();
 }

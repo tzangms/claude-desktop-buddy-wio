@@ -30,6 +30,8 @@ ParsedMessage parseLine(const std::string& line) {
         ++n;
       }
     }
+    m.heartbeat.tokens       = doc["tokens"]       | (int64_t)0;
+    m.heartbeat.tokens_today = doc["tokens_today"] | (int64_t)0;
     if (doc.containsKey("prompt") && !doc["prompt"].isNull()) {
       m.heartbeat.hasPrompt = true;
       m.heartbeat.prompt.id   = doc["prompt"]["id"]   | "";

@@ -27,6 +27,8 @@ struct HeartbeatData {
   int waiting = 0;
   std::string msg;
   std::vector<std::string> entries;
+  int64_t tokens = 0;
+  int64_t tokens_today = 0;
   bool hasPrompt = false;
   PromptData prompt;
 };
