@@ -156,6 +156,7 @@ void characterInit() {
   // Validate first-variant file for each populated state opens as a GIF.
   // Header-only: open → close. Cheap.
   gif.begin(LITTLE_ENDIAN_PIXELS);
+  bool anyOk = false;
   for (int i = 0; i < MANIFEST_STATE_COUNT; ++i) {
     if (m->stateVariantCount[i] == 0) continue;
     char path[96];
@@ -167,13 +168,18 @@ void characterInit() {
       continue;
     }
     gif.close();
+    anyOk = true;
   }
 
   // As long as manifestActive() is non-null AND at least one state file
   // validated, we're ready. pickFileImpl handles per-state misses.
-  ready = true;
-  Serial.print("[char] ready: ");
-  Serial.println(m->name);
+  ready = anyOk;
+  if (ready) {
+    Serial.print("[char] ready: ");
+    Serial.println(m->name);
+  } else {
+    Serial.println("[char] init: no valid gifs, falling back to ASCII");
+  }
 }
 #else
 void characterInit() {}
