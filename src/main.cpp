@@ -99,28 +99,34 @@ static void onLine(const std::string& line) {
     case MessageKind::UnpairCmd:
       sendLine(formatAck("unpair", true));
       break;
+    // The five xfer commands all do SFUD I/O which wedges rpcBLE if run
+    // on the callback stack (see persist.cpp:114 comment + MEMORY.md). We
+    // only stash the cmd here; loop() calls xferTick() which does the work
+    // and emits the ack.
     case MessageKind::CharBegin:
-      sendLine(formatAck("char_begin",
-                         xferBeginChar(m.xferName.c_str(), m.xferTotal)));
+      if (!xferQueueCharBegin(m.xferName.c_str(), m.xferTotal)) {
+        sendLine(formatAck("char_begin", false, "busy"));
+      }
       break;
     case MessageKind::FileBegin:
-      sendLine(formatAck("file",
-                         xferBeginFile(m.xferPath.c_str(), m.xferSize)));
+      if (!xferQueueFileBegin(m.xferPath.c_str(), m.xferSize)) {
+        sendLine(formatAck("file", false, "busy"));
+      }
       break;
-    case MessageKind::Chunk: {
-      int64_t written = 0;
-      bool ok = xferChunk(m.xferChunk.c_str(), written);
-      sendLine(formatAckN("chunk", ok, written));
+    case MessageKind::Chunk:
+      if (!xferQueueChunk(m.xferChunk.c_str())) {
+        sendLine(formatAckN("chunk", false, 0, "busy"));
+      }
       break;
-    }
-    case MessageKind::FileEnd: {
-      int64_t finalSize = 0;
-      bool ok = xferEndFile(finalSize);
-      sendLine(formatAckN("file_end", ok, finalSize));
+    case MessageKind::FileEnd:
+      if (!xferQueueFileEnd()) {
+        sendLine(formatAckN("file_end", false, 0, "busy"));
+      }
       break;
-    }
     case MessageKind::CharEnd:
-      sendLine(formatAck("char_end", xferEndChar()));
+      if (!xferQueueCharEnd()) {
+        sendLine(formatAck("char_end", false, "busy"));
+      }
       break;
     case MessageKind::TurnEvent:
       break;
@@ -159,6 +165,17 @@ void setup() {
 void loop() {
   uint32_t now = millis();
   pollBle();
+
+  // Drain xfer cmd queued by onLine (SFUD runs here, not on BLE callback).
+  XferAckInfo a = xferTick();
+  switch (a.kind) {
+    case XferAckInfo::CharBegin: sendLine(formatAck("char_begin", a.ok)); break;
+    case XferAckInfo::FileBegin: sendLine(formatAck("file", a.ok)); break;
+    case XferAckInfo::Chunk:     sendLine(formatAckN("chunk", a.ok, a.n)); break;
+    case XferAckInfo::FileEnd:   sendLine(formatAckN("file_end", a.ok, a.n)); break;
+    case XferAckInfo::CharEnd:   sendLine(formatAck("char_end", a.ok)); break;
+    case XferAckInfo::None: break;
+  }
 
   if (pendingRender) {
     pendingRender = false;

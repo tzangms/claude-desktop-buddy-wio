@@ -179,6 +179,96 @@ void test_active_char_name() {
   TEST_ASSERT_EQUAL_STRING("bufo", xferActiveCharName());  // latched
 }
 
+// --- deferred queue / tick (callback-safe path) ---
+
+void test_tick_empty_returns_none() {
+  _xferResetForTest();
+  XferAckInfo a = xferTick();
+  TEST_ASSERT_EQUAL(XferAckInfo::None, a.kind);
+}
+
+void test_queue_char_begin_deferred_until_tick() {
+  _xferResetForTest();
+  TEST_ASSERT_TRUE(xferQueueCharBegin("bufo", 1000));
+  // SFUD / state work MUST NOT have happened yet.
+  TEST_ASSERT_EQUAL(0, _xferStateOrdinal());  // still Idle
+  TEST_ASSERT_TRUE(xferHasPending());
+
+  XferAckInfo a = xferTick();
+  TEST_ASSERT_EQUAL(XferAckInfo::CharBegin, a.kind);
+  TEST_ASSERT_TRUE(a.ok);
+  TEST_ASSERT_EQUAL(1, _xferStateOrdinal());  // CharOpen after tick
+  TEST_ASSERT_FALSE(xferHasPending());
+}
+
+void test_queue_while_pending_rejected() {
+  _xferResetForTest();
+  TEST_ASSERT_TRUE(xferQueueCharBegin("bufo", 1000));
+  TEST_ASSERT_FALSE(xferQueueCharBegin("other", 500));  // still pending
+}
+
+void test_queue_chunk_not_written_until_tick() {
+  _xferResetForTest();
+  xferQueueCharBegin("bufo", 1000);
+  xferTick();
+  xferQueueFileBegin("x.bin", 5);
+  xferTick();
+
+  TEST_ASSERT_TRUE(xferQueueChunk("aGVsbG8="));  // "hello"
+  // Bytes not written to backing store yet.
+  TEST_ASSERT_EQUAL(0u, _xferLastFileSize());
+
+  XferAckInfo a = xferTick();
+  TEST_ASSERT_EQUAL(XferAckInfo::Chunk, a.kind);
+  TEST_ASSERT_TRUE(a.ok);
+  TEST_ASSERT_EQUAL_INT64(5, a.n);
+}
+
+void test_full_roundtrip_via_queue_tick() {
+  _xferResetForTest();
+
+  TEST_ASSERT_TRUE(xferQueueCharBegin("bufo", 1000));
+  XferAckInfo a1 = xferTick();
+  TEST_ASSERT_EQUAL(XferAckInfo::CharBegin, a1.kind);
+  TEST_ASSERT_TRUE(a1.ok);
+
+  TEST_ASSERT_TRUE(xferQueueFileBegin("data.bin", 11));
+  XferAckInfo a2 = xferTick();
+  TEST_ASSERT_EQUAL(XferAckInfo::FileBegin, a2.kind);
+  TEST_ASSERT_TRUE(a2.ok);
+
+  TEST_ASSERT_TRUE(xferQueueChunk("aGVsbG8g"));     // "hello "
+  XferAckInfo a3 = xferTick();
+  TEST_ASSERT_EQUAL(XferAckInfo::Chunk, a3.kind);
+  TEST_ASSERT_EQUAL_INT64(6, a3.n);
+
+  TEST_ASSERT_TRUE(xferQueueChunk("d29ybGQ="));     // "world"
+  xferTick();
+
+  TEST_ASSERT_TRUE(xferQueueFileEnd());
+  XferAckInfo a4 = xferTick();
+  TEST_ASSERT_EQUAL(XferAckInfo::FileEnd, a4.kind);
+  TEST_ASSERT_TRUE(a4.ok);
+  TEST_ASSERT_EQUAL_INT64(11, a4.n);
+  TEST_ASSERT_EQUAL_MEMORY("hello world", _xferLastFileBytes(), 11);
+
+  TEST_ASSERT_TRUE(xferQueueCharEnd());
+  XferAckInfo a5 = xferTick();
+  TEST_ASSERT_EQUAL(XferAckInfo::CharEnd, a5.kind);
+  TEST_ASSERT_TRUE(a5.ok);
+  TEST_ASSERT_EQUAL(0, _xferStateOrdinal());
+}
+
+void test_queue_file_begin_chunk_end_acks_carry_n() {
+  // file_end ack should include the actual byte count so host can verify.
+  _xferResetForTest();
+  xferQueueCharBegin("bufo", 1000); xferTick();
+  xferQueueFileBegin("a.bin", 3);   xferTick();
+  xferQueueChunk("aGVs");           // "hel" = 3 bytes
+  XferAckInfo a = xferTick();
+  TEST_ASSERT_EQUAL_INT64(3, a.n);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_valid_names);
@@ -203,5 +293,11 @@ int main(int, char**) {
   RUN_TEST(test_end_file_fails_on_size_mismatch);
   RUN_TEST(test_bad_chunk_base64_fails);
   RUN_TEST(test_active_char_name);
+  RUN_TEST(test_tick_empty_returns_none);
+  RUN_TEST(test_queue_char_begin_deferred_until_tick);
+  RUN_TEST(test_queue_while_pending_rejected);
+  RUN_TEST(test_queue_chunk_not_written_until_tick);
+  RUN_TEST(test_full_roundtrip_via_queue_tick);
+  RUN_TEST(test_queue_file_begin_chunk_end_acks_carry_n);
   return UNITY_END();
 }

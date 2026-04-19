@@ -25,6 +25,21 @@ namespace {
   int64_t fileExpectedBytes = 0;
   int64_t fileBytesWritten = 0;
 
+  // "d" chunk caps at StaticJsonDocument<2048> in protocol.cpp, so 1600
+  // bytes of base64 covers every chunk we will ever accept.
+  static constexpr size_t MAX_CHUNK_B64 = 1600;
+
+  // Single-slot pending command. Filled by xferQueue* on the BLE callback
+  // stack, drained by xferTick on the main loop.
+  struct Pending {
+    XferAckInfo::Kind kind = XferAckInfo::None;
+    char name[33] = {0};
+    char path[64] = {0};
+    int64_t total = 0;
+    int64_t size = 0;
+    char chunk[MAX_CHUNK_B64] = {0};
+  } pending;
+
 #ifdef ARDUINO
   File currentFile;
 #else
@@ -42,6 +57,7 @@ namespace {
     filePath[0] = '\0';
     fileExpectedBytes = 0;
     fileBytesWritten = 0;
+    pending.kind = XferAckInfo::None;
 #ifdef ARDUINO
     if (currentFile) currentFile.close();
 #else
@@ -206,6 +222,91 @@ const char* xferActiveCharName() {
   return charName;
 }
 
+bool xferQueueCharBegin(const char* name, int64_t total) {
+  if (pending.kind != XferAckInfo::None) return false;
+  if (!name) name = "";
+  std::strncpy(pending.name, name, sizeof(pending.name) - 1);
+  pending.name[sizeof(pending.name) - 1] = '\0';
+  pending.total = total;
+  pending.kind = XferAckInfo::CharBegin;
+  return true;
+}
+
+bool xferQueueFileBegin(const char* path, int64_t size) {
+  if (pending.kind != XferAckInfo::None) return false;
+  if (!path) path = "";
+  std::strncpy(pending.path, path, sizeof(pending.path) - 1);
+  pending.path[sizeof(pending.path) - 1] = '\0';
+  pending.size = size;
+  pending.kind = XferAckInfo::FileBegin;
+  return true;
+}
+
+bool xferQueueChunk(const char* base64Data) {
+  if (pending.kind != XferAckInfo::None) return false;
+  if (!base64Data) base64Data = "";
+  // strncpy would null-pad the full buffer (~1.6 KB writes per chunk) on the
+  // BLE callback stack — the very path we're trying to keep cheap. memcpy
+  // only touches the actual bytes.
+  size_t n = std::strlen(base64Data);
+  if (n >= sizeof(pending.chunk)) return false;
+  std::memcpy(pending.chunk, base64Data, n + 1);  // +1 for the NUL
+  pending.kind = XferAckInfo::Chunk;
+  return true;
+}
+
+bool xferQueueFileEnd() {
+  if (pending.kind != XferAckInfo::None) return false;
+  pending.kind = XferAckInfo::FileEnd;
+  return true;
+}
+
+bool xferQueueCharEnd() {
+  if (pending.kind != XferAckInfo::None) return false;
+  pending.kind = XferAckInfo::CharEnd;
+  return true;
+}
+
+bool xferHasPending() {
+  return pending.kind != XferAckInfo::None;
+}
+
+XferAckInfo xferTick() {
+  XferAckInfo out;
+  switch (pending.kind) {
+    case XferAckInfo::None:
+      return out;
+    case XferAckInfo::CharBegin:
+      out.kind = XferAckInfo::CharBegin;
+      out.ok = xferBeginChar(pending.name, pending.total);
+      break;
+    case XferAckInfo::FileBegin:
+      out.kind = XferAckInfo::FileBegin;
+      out.ok = xferBeginFile(pending.path, pending.size);
+      break;
+    case XferAckInfo::Chunk: {
+      out.kind = XferAckInfo::Chunk;
+      int64_t written = 0;
+      out.ok = xferChunk(pending.chunk, written);
+      out.n = written;
+      break;
+    }
+    case XferAckInfo::FileEnd: {
+      out.kind = XferAckInfo::FileEnd;
+      int64_t finalSize = 0;
+      out.ok = xferEndFile(finalSize);
+      out.n = finalSize;
+      break;
+    }
+    case XferAckInfo::CharEnd:
+      out.kind = XferAckInfo::CharEnd;
+      out.ok = xferEndChar();
+      break;
+  }
+  pending.kind = XferAckInfo::None;
+  return out;
+}
+
 #ifndef ARDUINO
 size_t _xferLastFileSize() { return fakeLast.size(); }
 const uint8_t* _xferLastFileBytes() { return fakeLast.data(); }
@@ -215,5 +316,6 @@ void _xferResetForTest() {
   fakeLast.clear();
   fakeLastPath.clear();
   charName[0] = '\0';
+  pending.kind = XferAckInfo::None;
 }
 #endif
