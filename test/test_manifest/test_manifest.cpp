@@ -70,6 +70,69 @@ void test_parse_malformed_json_rejects() {
   TEST_ASSERT_FALSE(manifestParseJson(j, std::strlen(j), m, err));
 }
 
+static const char* kBufoFull = R"({
+  "name": "bufo",
+  "colors": { "body":"#6B8E23","bg":"#000000","text":"#FFFFFF",
+              "textDim":"#808080","ink":"#000000" },
+  "states": {
+    "sleep": "sleep.gif",
+    "idle":  ["idle_0.gif","idle_1.gif","idle_2.gif"],
+    "busy":      "busy.gif",
+    "attention": "attention.gif",
+    "celebrate": "celebrate.gif",
+    "dizzy":     "dizzy.gif",
+    "heart":     "heart.gif"
+  }
+})";
+
+void test_parse_state_string_single_variant() {
+  CharManifest m{};
+  std::string err;
+  TEST_ASSERT_TRUE(manifestParseJson(kBufoFull, std::strlen(kBufoFull),
+                                     m, err));
+  TEST_ASSERT_EQUAL_UINT8(1, m.stateVariantCount[MANIFEST_STATE_SLEEP]);
+  TEST_ASSERT_EQUAL_STRING("sleep.gif", m.states[MANIFEST_STATE_SLEEP][0]);
+  TEST_ASSERT_EQUAL_UINT8(1, m.stateVariantCount[MANIFEST_STATE_BUSY]);
+  TEST_ASSERT_EQUAL_STRING("busy.gif", m.states[MANIFEST_STATE_BUSY][0]);
+}
+
+void test_parse_state_array_multiple_variants() {
+  CharManifest m{};
+  std::string err;
+  TEST_ASSERT_TRUE(manifestParseJson(kBufoFull, std::strlen(kBufoFull),
+                                     m, err));
+  TEST_ASSERT_EQUAL_UINT8(3, m.stateVariantCount[MANIFEST_STATE_IDLE]);
+  TEST_ASSERT_EQUAL_STRING("idle_0.gif", m.states[MANIFEST_STATE_IDLE][0]);
+  TEST_ASSERT_EQUAL_STRING("idle_1.gif", m.states[MANIFEST_STATE_IDLE][1]);
+  TEST_ASSERT_EQUAL_STRING("idle_2.gif", m.states[MANIFEST_STATE_IDLE][2]);
+}
+
+void test_parse_state_missing_is_zero_count() {
+  // kBufoFull has no "nap"
+  CharManifest m{};
+  std::string err;
+  manifestParseJson(kBufoFull, std::strlen(kBufoFull), m, err);
+  TEST_ASSERT_EQUAL_UINT8(0, m.stateVariantCount[MANIFEST_STATE_NAP]);
+}
+
+void test_parse_state_array_over_cap_truncates_with_warning() {
+  // 20-element array
+  std::string j = R"({"name":"x","colors":{"body":"#000000","bg":"#000000",
+    "text":"#000000","textDim":"#000000","ink":"#000000"},
+    "states":{"idle":[)";
+  for (int i = 0; i < 20; ++i) {
+    if (i) j += ",";
+    j += "\"f" + std::to_string(i) + ".gif\"";
+  }
+  j += "]}}";
+  CharManifest m{};
+  std::string err;
+  TEST_ASSERT_TRUE(manifestParseJson(j.c_str(), j.size(), m, err));
+  TEST_ASSERT_EQUAL_UINT8(MANIFEST_MAX_VARIANTS,
+                          m.stateVariantCount[MANIFEST_STATE_IDLE]);
+  TEST_ASSERT_TRUE(err.find("truncated") != std::string::npos);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_active_initially_null);
@@ -81,5 +144,9 @@ int main(int, char**) {
   RUN_TEST(test_parse_missing_name_rejects);
   RUN_TEST(test_parse_missing_colors_rejects);
   RUN_TEST(test_parse_malformed_json_rejects);
+  RUN_TEST(test_parse_state_string_single_variant);
+  RUN_TEST(test_parse_state_array_multiple_variants);
+  RUN_TEST(test_parse_state_missing_is_zero_count);
+  RUN_TEST(test_parse_state_array_over_cap_truncates_with_warning);
   return UNITY_END();
 }

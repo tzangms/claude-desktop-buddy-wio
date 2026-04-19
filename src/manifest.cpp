@@ -47,6 +47,51 @@ namespace {
 
   bool hasActive = false;
   CharManifest active;
+
+  struct StateName { const char* key; ManifestStateIdx idx; };
+  constexpr StateName kStateNames[] = {
+    {"sleep",     MANIFEST_STATE_SLEEP},
+    {"idle",      MANIFEST_STATE_IDLE},
+    {"busy",      MANIFEST_STATE_BUSY},
+    {"attention", MANIFEST_STATE_ATTENTION},
+    {"celebrate", MANIFEST_STATE_CELEBRATE},
+    {"heart",     MANIFEST_STATE_HEART},
+    {"dizzy",     MANIFEST_STATE_DIZZY},
+    {"nap",       MANIFEST_STATE_NAP},
+  };
+
+  void storeVariant(CharManifest& out, ManifestStateIdx idx, const char* fn) {
+    uint8_t& n = out.stateVariantCount[idx];
+    if (n >= MANIFEST_MAX_VARIANTS) return;
+    std::strncpy(out.states[idx][n], fn, MANIFEST_FILENAME_MAX);
+    out.states[idx][n][MANIFEST_FILENAME_MAX] = '\0';
+    ++n;
+  }
+
+  void parseStates(JsonObjectConst states, CharManifest& out, std::string& err) {
+    for (const auto& sn : kStateNames) {
+      if (!states.containsKey(sn.key)) continue;
+      JsonVariantConst v = states[sn.key];
+      if (v.is<const char*>()) {
+        storeVariant(out, sn.idx, v.as<const char*>());
+      } else if (v.is<JsonArrayConst>()) {
+        JsonArrayConst arr = v.as<JsonArrayConst>();
+        size_t seen = 0;
+        for (JsonVariantConst f : arr) {
+          const char* fn = f | "";
+          if (fn[0] == '\0') continue;
+          if (out.stateVariantCount[sn.idx] < MANIFEST_MAX_VARIANTS) {
+            storeVariant(out, sn.idx, fn);
+          }
+          ++seen;
+        }
+        if (seen > MANIFEST_MAX_VARIANTS && err.empty()) {
+          err = std::string("states.") + sn.key + " truncated";
+        }
+      }
+      // Unknown types ignored silently.
+    }
+  }
 }
 
 uint16_t _manifestHex24ToRgb565(const char* hex) {
@@ -81,7 +126,9 @@ bool manifestParseJson(const char* json, size_t len,
   if (!readRequiredColor(colors, "textDim", out.colorTextDim, err)) return false;
   if (!readRequiredColor(colors, "ink",     out.colorInk,     err)) return false;
 
-  // states parsed in Task 4.
+  if (root.containsKey("states") && root["states"].is<JsonObjectConst>()) {
+    parseStates(root["states"].as<JsonObjectConst>(), out, err);
+  }
   return true;
 }
 
