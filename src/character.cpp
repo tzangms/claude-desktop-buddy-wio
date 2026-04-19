@@ -21,19 +21,20 @@ namespace {
   uint32_t  variantStart  = 0;
   bool      hasCurState   = false;   // false at boot; first pick sets it.
 
-  // Mapping PetState → ManifestStateIdx matches SP6a's manifest enum.
-  ManifestStateIdx mapState(PetState s) {
-    switch (s) {
-      case PetState::Sleep:     return MANIFEST_STATE_SLEEP;
-      case PetState::Idle:      return MANIFEST_STATE_IDLE;
-      case PetState::Busy:      return MANIFEST_STATE_BUSY;
-      case PetState::Attention: return MANIFEST_STATE_ATTENTION;
-      case PetState::Celebrate: return MANIFEST_STATE_CELEBRATE;
-      case PetState::Heart:     return MANIFEST_STATE_HEART;
-      case PetState::Dizzy:     return MANIFEST_STATE_DIZZY;
-      case PetState::Nap:       return MANIFEST_STATE_NAP;
-    }
-    return MANIFEST_STATE_SLEEP;
+  // PetState and ManifestStateIdx are declared in the same ordinal order
+  // (Sleep=0 … Nap=7) — see manifest.h's "Indices match src/pet.h::PetState"
+  // comment. Cast is safe; static_asserts pin the invariant.
+  static_assert(static_cast<uint8_t>(PetState::Sleep)     == MANIFEST_STATE_SLEEP,     "");
+  static_assert(static_cast<uint8_t>(PetState::Idle)      == MANIFEST_STATE_IDLE,      "");
+  static_assert(static_cast<uint8_t>(PetState::Busy)      == MANIFEST_STATE_BUSY,      "");
+  static_assert(static_cast<uint8_t>(PetState::Attention) == MANIFEST_STATE_ATTENTION, "");
+  static_assert(static_cast<uint8_t>(PetState::Celebrate) == MANIFEST_STATE_CELEBRATE, "");
+  static_assert(static_cast<uint8_t>(PetState::Heart)     == MANIFEST_STATE_HEART,     "");
+  static_assert(static_cast<uint8_t>(PetState::Dizzy)     == MANIFEST_STATE_DIZZY,     "");
+  static_assert(static_cast<uint8_t>(PetState::Nap)       == MANIFEST_STATE_NAP,       "");
+
+  inline ManifestStateIdx mapState(PetState s) {
+    return static_cast<ManifestStateIdx>(static_cast<uint8_t>(s));
   }
 
   // Pure lookup: state + variant index → filename, with fallback chain.
@@ -56,8 +57,6 @@ namespace {
   }
 
 #ifdef ARDUINO
-  // Forward declarations — callback definitions come next, but openVariant
-  // (below the draw callback) and characterInit reference them.
   AnimatedGIF gif;
   File      gifFile;
   bool      ready       = false;
@@ -93,8 +92,6 @@ namespace {
     return pFile->iPos;
   }
 
-  int gifDrawX = 0, gifDrawY = 0;
-
   // Called by AnimatedGIF once per decoded scanline. Writes RGB565
   // pixels directly to the TFT — no framebuffer / sprite.
   // Transparent pixels paint manifest bg color so each frame fully
@@ -108,9 +105,9 @@ namespace {
     const CharManifest* m = manifestActive();
     uint16_t bg = m ? m->colorBg : 0x0000;
 
-    int y = gifDrawY + d->iY + d->y;
+    int y = BUDDY_Y + d->iY + d->y;
     if (y < 0 || y >= SCREEN_H) return;
-    int x0 = gifDrawX + d->iX;
+    int x0 = BUDDY_X + d->iX;
     int w  = d->iWidth;
     if (x0 < 0) { src -= x0; w += x0; x0 = 0; }
     if (x0 + w > SCREEN_W) w = SCREEN_W - x0;
@@ -136,8 +133,6 @@ namespace {
       return false;
     }
     gifOpen = true;
-    gifDrawX = BUDDY_X;
-    gifDrawY = BUDDY_Y;
     nextFrameAt = 0;
     variantStart = nowMs;
     return true;
@@ -171,8 +166,6 @@ void characterInit() {
     anyOk = true;
   }
 
-  // As long as manifestActive() is non-null AND at least one state file
-  // validated, we're ready. pickFileImpl handles per-state misses.
   ready = anyOk;
   if (ready) {
     Serial.print("[char] ready: ");

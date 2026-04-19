@@ -32,11 +32,7 @@ static std::string deviceSuffix() {
 }
 
 static void render(bool force) {
-  // Snapshot mode + prompt at entry. rpcBLE callbacks run in a separate
-  // task and can mutate appState mid-dispatch; if we re-read at the end
-  // lastRenderedMode can end up reflecting the post-race mode, not what
-  // we actually drew, which breaks modeChanged detection on the next
-  // render and skips fullRedraw → prior text lingers in layout gaps.
+  // Snapshot to survive rpcBLE-task mutation of appState mid-dispatch.
   Mode m = appState.mode;
   std::string pid = appState.hb.prompt.id;
   bool modeChanged = m != lastRenderedMode;
@@ -198,10 +194,8 @@ void loop() {
     applyConnected(appState);
     render(true);
   } else if (conn && appState.mode == Mode::Disconnected) {
-    // Recovery path — if applyTimeouts (heartbeat stale >30s) flipped us
-    // to Disconnected but the BLE link is still up, OR a mid-loop
-    // disconnect+reconnect raced, restore Connected so the screen doesn't
-    // linger on Disconnected text until the next heartbeat.
+    // Link is up but mode drifted (heartbeat-stale timeout or brief
+    // drop): restore Connected so the screen doesn't linger.
     applyConnected(appState);
     render(true);
   } else if (!conn && (appState.mode == Mode::Idle ||
@@ -259,10 +253,9 @@ void loop() {
 
   backlightTick(appState, now);
   persistTick(now);
-  // Track mode transitions so re-entering Idle from Prompt/Ack triggers
-  // a characterSetState even when PetState is unchanged — otherwise
-  // renderIdle's characterInvalidate leaves the buddy slot blank until
-  // PetState changes (bug from SP6b initial wiring).
+  // Re-entering Idle from any other mode must reopen the GIF, even when
+  // PetState is unchanged — renderIdle's fullRedraw calls
+  // characterInvalidate, so the slot would stay blank otherwise.
   static Mode lastCharMode = Mode::BleInit;
   if (appState.mode == Mode::Idle && characterReady()) {
     static PetState lastCharState = PetState::Sleep;
@@ -278,9 +271,7 @@ void loop() {
   }
   lastCharMode = appState.mode;
 
-  // Pet (ASCII fallback) tick still drives PetState-cache for renderIdle
-  // when characterReady() is false. Harmless when buddy is active — no
-  // ui.cpp render occurs during the buddy frame window (Idle cached).
+  // petTickFrame still advances PetState animation for the ASCII fallback.
   bool petAdvanced = petTickFrame(now);
   if (petAdvanced && appState.mode == Mode::Idle) pendingRender = true;
 
