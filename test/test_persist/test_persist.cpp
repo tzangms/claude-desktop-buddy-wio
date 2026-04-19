@@ -76,6 +76,34 @@ void test_commit_immediate_flushes_now() {
   TEST_ASSERT_EQUAL_INT32(7, persistGet().appr);
 }
 
+void test_commit_debounced_waits_under_threshold() {
+  _persistResetFakeFile();
+  persistInit();
+  int before = _persistWriteCount();
+  persistMut().appr = 1;
+  persistCommit(false);
+  persistTick(PERSIST_DEBOUNCE_MS - 1);
+  TEST_ASSERT_EQUAL(before, _persistWriteCount());
+}
+
+void test_tick_flushes_after_time_threshold() {
+  _persistResetFakeFile();
+  persistInit();
+  int before = _persistWriteCount();
+  persistMut().appr = 2;
+  persistCommit(false);
+  persistTick(PERSIST_DEBOUNCE_MS + 1);
+  TEST_ASSERT_EQUAL(before + 1, _persistWriteCount());
+}
+
+void test_tick_skips_when_clean() {
+  _persistResetFakeFile();
+  persistInit();
+  int before = _persistWriteCount();
+  persistTick(PERSIST_DEBOUNCE_MS * 10);
+  TEST_ASSERT_EQUAL(before, _persistWriteCount());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_init_empty_uses_defaults);
@@ -83,5 +111,8 @@ int main(int, char**) {
   RUN_TEST(test_init_rejects_wrong_magic);
   RUN_TEST(test_init_rejects_wrong_version);
   RUN_TEST(test_commit_immediate_flushes_now);
+  RUN_TEST(test_commit_debounced_waits_under_threshold);
+  RUN_TEST(test_tick_flushes_after_time_threshold);
+  RUN_TEST(test_tick_skips_when_clean);
   return UNITY_END();
 }

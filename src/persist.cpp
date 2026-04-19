@@ -85,8 +85,11 @@ void persistCommit(bool immediate) {
   }
 }
 
-void persistTick(uint32_t /*nowMs*/) {
-  // Debounce logic lands in Tasks 5–6
+void persistTick(uint32_t nowMs) {
+  if (!dirty || !fsReady) return;
+  if ((nowMs - lastFlushMs) < PERSIST_DEBOUNCE_MS) return;
+  flush();
+  lastFlushMs = nowMs;
 }
 
 void persistUpdateFromHeartbeat(int64_t /*sessionTokens*/, int64_t /*tokensToday*/) {
