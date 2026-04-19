@@ -7,7 +7,8 @@ enum class MessageKind {
   Heartbeat,
   Owner,
   Time,
-  Unknown,  // includes "evt":"turn" and anything else we ignore
+  TurnEvent,
+  Unknown,
   ParseError,
 };
 

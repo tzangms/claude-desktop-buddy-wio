@@ -32,6 +32,11 @@ ParsedMessage parseLine(const std::string& line) {
     return m;
   }
 
+  if (doc["evt"] == "turn") {
+    m.kind = MessageKind::TurnEvent;
+    return m;
+  }
+
   if (doc.containsKey("time") && doc["time"].is<JsonArray>()) {
     JsonArray a = doc["time"].as<JsonArray>();
     if (a.size() >= 2) {

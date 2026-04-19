@@ -40,10 +40,10 @@ void test_parse_time() {
   TEST_ASSERT_EQUAL_INT32(-25200, m.timeOffsetSec);
 }
 
-void test_parse_turn_event_is_unknown() {
+void test_parse_turn_event() {
   std::string line = R"({"evt":"turn","role":"assistant","content":[]})";
   ParsedMessage m = parseLine(line);
-  TEST_ASSERT_EQUAL(static_cast<int>(MessageKind::Unknown),
+  TEST_ASSERT_EQUAL(static_cast<int>(MessageKind::TurnEvent),
                     static_cast<int>(m.kind));
 }
 
@@ -83,7 +83,7 @@ int main(int, char**) {
   RUN_TEST(test_parse_heartbeat_with_prompt);
   RUN_TEST(test_parse_owner);
   RUN_TEST(test_parse_time);
-  RUN_TEST(test_parse_turn_event_is_unknown);
+  RUN_TEST(test_parse_turn_event);
   RUN_TEST(test_parse_malformed_is_error);
   RUN_TEST(test_format_permission_approve);
   RUN_TEST(test_format_permission_deny);
