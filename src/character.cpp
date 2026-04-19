@@ -35,6 +35,25 @@ namespace {
     return MANIFEST_STATE_SLEEP;
   }
 
+  // Pure lookup: state + variant index → filename, with fallback chain.
+  // Does NOT track state or time.
+  const char* pickStateFile(PetState state, uint8_t vIdx) {
+    const CharManifest* m = manifestActive();
+    if (!m) return nullptr;
+
+    ManifestStateIdx idx = mapState(state);
+    if (m->stateVariantCount[idx] > 0) {
+      uint8_t v = vIdx < m->stateVariantCount[idx] ? vIdx : 0;
+      return m->states[idx][v];
+    }
+    // Fall back to sleep, then idle[0].
+    if (m->stateVariantCount[MANIFEST_STATE_SLEEP] > 0)
+      return m->states[MANIFEST_STATE_SLEEP][0];
+    if (m->stateVariantCount[MANIFEST_STATE_IDLE] > 0)
+      return m->states[MANIFEST_STATE_IDLE][0];
+    return nullptr;
+  }
+
 #ifdef ARDUINO
   bool      ready       = false;
   AnimatedGIF gif;
@@ -72,9 +91,37 @@ void characterInvalidate() {
 }
 
 #ifndef ARDUINO
-const char* _characterPickFile(PetState, uint32_t) {
-  // Implemented in Task 2.
-  return nullptr;
+const char* _characterPickFile(PetState state, uint32_t nowMs) {
+  // State transition → reset variant bookkeeping so a re-entry starts
+  // at variant[0] with a fresh dwell window.
+  if (!hasCurState || state != curState) {
+    curState = state;
+    variantIdx = 0;
+    variantStart = nowMs;
+    hasCurState = true;
+  }
+
+  // Idle-only rotation: advance variantIdx when dwell window elapses.
+  // This matches the *observable* behavior of the ARDUINO decoder from
+  // a caller's POV: after VARIANT_DWELL_MS, a new variant name appears.
+  // The real decoder only advances at end-of-animation, but since tests
+  // exercise by-name output and the dwell is a floor not a ceiling,
+  // time-based here is accurate enough for the test contract.
+  if (state == PetState::Idle) {
+    const CharManifest* m = manifestActive();
+    if (m) {
+      uint8_t n = m->stateVariantCount[MANIFEST_STATE_IDLE];
+      if (n > 1 && (nowMs - variantStart) >= VARIANT_DWELL_MS) {
+        uint32_t elapsed = nowMs - variantStart;
+        uint32_t steps   = elapsed / VARIANT_DWELL_MS;
+        variantIdx = (uint8_t)((variantIdx + steps) % n);
+        variantStart += steps * VARIANT_DWELL_MS;
+      }
+    }
+  }
+
+  uint8_t vIdx = (state == PetState::Idle) ? variantIdx : 0;
+  return pickStateFile(state, vIdx);
 }
 
 void _characterResetForTest() {
