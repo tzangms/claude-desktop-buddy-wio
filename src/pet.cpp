@@ -1,31 +1,31 @@
 #include "pet.h"
 #include "state.h"
+#include "config.h"
 
 namespace {
-  const char* const FACE_SLEEP[PET_FACE_LINES] = {
-    " ,---.",
-    " (- -)",
-    " | z |",
-    " '---'",
+  const char* const FRAMES_SLEEP[PET_FRAMES_PER_STATE][PET_FACE_LINES] = {
+    { " ,---.", " (- -)", " | z |", " '---'" },
+    { " ,---.", " (- -)", " | . |", " '---'" },
+    { " ,---.", " (- -)", " | z |", " '---'" },
   };
-  const char* const FACE_IDLE[PET_FACE_LINES] = {
-    " ,---.",
-    " (o o)",
-    " | _ |",
-    " '---'",
+  const char* const FRAMES_IDLE[PET_FRAMES_PER_STATE][PET_FACE_LINES] = {
+    { " ,---.", " (o o)", " | _ |", " '---'" },
+    { " ,---.", " (- -)", " | _ |", " '---'" },
+    { " ,---.", " (o o)", " | _ |", " '---'" },
   };
-  const char* const FACE_BUSY[PET_FACE_LINES] = {
-    " ,---.",
-    " (> <)",
-    " | ~ |",
-    " '---'",
+  const char* const FRAMES_BUSY[PET_FRAMES_PER_STATE][PET_FACE_LINES] = {
+    { " ,---.", " (> <)", " | ~ |", " '---'" },
+    { " ,---.", " (> <)", " | - |", " '---'" },
+    { " ,---.", " (> <)", " | = |", " '---'" },
   };
-  const char* const FACE_ATTENTION[PET_FACE_LINES] = {
-    " ,---.",
-    " (O O)",
-    " | ! |",
-    " '---'",
+  const char* const FRAMES_ATTENTION[PET_FRAMES_PER_STATE][PET_FACE_LINES] = {
+    { " ,---.", " (O O)", " | ! |", " '---'" },
+    { " ,---.", " (O O)", " |!!!|", " '---'" },
+    { " ,---.", " (O O)", " | ! |", " '---'" },
   };
+
+  size_t frameIdx = 0;
+  uint32_t lastFrameMs = 0;
 }
 
 PetState petComputeState(const AppState& s) {
@@ -42,12 +42,29 @@ PetState petComputeState(const AppState& s) {
   }
 }
 
-const char* const* petFace(PetState state) {
+const char* const* petFace(PetState state, size_t f) {
+  if (f >= PET_FRAMES_PER_STATE) f = 0;
   switch (state) {
-    case PetState::Sleep:     return FACE_SLEEP;
-    case PetState::Idle:      return FACE_IDLE;
-    case PetState::Busy:      return FACE_BUSY;
-    case PetState::Attention: return FACE_ATTENTION;
+    case PetState::Sleep:     return FRAMES_SLEEP[f];
+    case PetState::Idle:      return FRAMES_IDLE[f];
+    case PetState::Busy:      return FRAMES_BUSY[f];
+    case PetState::Attention: return FRAMES_ATTENTION[f];
   }
-  return FACE_IDLE;
+  return FRAMES_IDLE[0];
+}
+
+bool petTickFrame(uint32_t nowMs) {
+  if ((nowMs - lastFrameMs) < PET_FRAME_MS) return false;
+  frameIdx = (frameIdx + 1) % PET_FRAMES_PER_STATE;
+  lastFrameMs = nowMs;
+  return true;
+}
+
+size_t petCurrentFrame() {
+  return frameIdx;
+}
+
+void petResetFrame(uint32_t nowMs) {
+  frameIdx = 0;
+  lastFrameMs = nowMs;
 }

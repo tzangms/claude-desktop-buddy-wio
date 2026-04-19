@@ -9,6 +9,7 @@
 #include "mem.h"
 #include "backlight.h"
 #include "persist.h"
+#include "pet.h"
 
 static AppState appState;
 static Mode lastRenderedMode = Mode::BleInit;
@@ -174,6 +175,7 @@ void loop() {
 
   backlightTick(appState, now);
   persistTick(now);
+  if (petTickFrame(now)) pendingRender = true;
 
   delay(10);
 }
