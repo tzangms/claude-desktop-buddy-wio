@@ -141,10 +141,10 @@ void loop() {
 
   if ((now - lastButtonSendMs) > POST_SEND_LOCKOUT_MS) {
     ButtonEvent e = pollButtons(now);
-    if (e == ButtonEvent::PressNav) {
+    if (e != ButtonEvent::None) {
       markInteraction(now);
-    } else if (e == ButtonEvent::PressA || e == ButtonEvent::PressC) {
-      markInteraction(now);
+    }
+    if (e == ButtonEvent::PressA || e == ButtonEvent::PressC) {
       char btn = (e == ButtonEvent::PressA) ? 'A' : 'C';
       PermissionDecision d;
       std::string id;
@@ -159,10 +159,14 @@ void loop() {
 
   if (applyTimeouts(appState, now)) render(true);
 
+  // LCD_BACKLIGHT on Wio Terminal is NOT_ON_PWM, so analogWrite falls back
+  // to a digital threshold at 128: <128 → off, >=128 → full on. Treat the
+  // idle timeout as a hard off (setBacklight(0)); markInteraction restores
+  // to full on via setBacklight(100).
   if (appState.mode == Mode::Idle &&
       lastInteractionMs != 0 &&
       (now - lastInteractionMs) > BACKLIGHT_IDLE_MS) {
-    setBacklight(20);
+    setBacklight(0);
   }
 
   delay(10);
