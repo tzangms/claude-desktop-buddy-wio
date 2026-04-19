@@ -87,7 +87,10 @@ void persistCommit(bool immediate) {
 
 void persistTick(uint32_t nowMs) {
   if (!dirty || !fsReady) return;
-  if ((nowMs - lastFlushMs) < PERSIST_DEBOUNCE_MS) return;
+  int64_t tokenDelta = data.deviceLifetimeTokens - lastFlushedLifetimeTokens;
+  bool timeTriggered  = (nowMs - lastFlushMs) >= PERSIST_DEBOUNCE_MS;
+  bool tokenTriggered = tokenDelta >= PERSIST_DEBOUNCE_TOKENS;
+  if (!timeTriggered && !tokenTriggered) return;
   flush();
   lastFlushMs = nowMs;
 }

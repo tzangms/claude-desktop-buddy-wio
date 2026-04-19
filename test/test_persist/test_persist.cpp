@@ -104,6 +104,16 @@ void test_tick_skips_when_clean() {
   TEST_ASSERT_EQUAL(before, _persistWriteCount());
 }
 
+void test_tick_flushes_after_token_delta_threshold() {
+  _persistResetFakeFile();
+  persistInit();
+  int before = _persistWriteCount();
+  persistMut().deviceLifetimeTokens = PERSIST_DEBOUNCE_TOKENS + 1;
+  persistCommit(false);
+  persistTick(1000);  // well under PERSIST_DEBOUNCE_MS
+  TEST_ASSERT_EQUAL(before + 1, _persistWriteCount());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_init_empty_uses_defaults);
@@ -114,5 +124,6 @@ int main(int, char**) {
   RUN_TEST(test_commit_debounced_waits_under_threshold);
   RUN_TEST(test_tick_flushes_after_time_threshold);
   RUN_TEST(test_tick_skips_when_clean);
+  RUN_TEST(test_tick_flushes_after_token_delta_threshold);
   return UNITY_END();
 }
