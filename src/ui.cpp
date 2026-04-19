@@ -26,8 +26,6 @@ static void drawFooter(const char* text) {
 }
 
 void initUi() {
-  pinMode(LCD_BACKLIGHT, OUTPUT);
-  analogWrite(LCD_BACKLIGHT, BACKLIGHT_FULL);
   tft.begin();
   tft.setRotation(3);
   clearAll();

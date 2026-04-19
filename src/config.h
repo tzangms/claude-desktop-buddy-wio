@@ -34,10 +34,6 @@ static constexpr uint16_t COLOR_ALERT_BG   = 0xC000;  // red
 static constexpr uint16_t COLOR_ALERT_TEXT = 0xFFFF;
 static constexpr uint16_t COLOR_FOOTER_BG  = 0x2104;  // near-black grey
 
-// --- Backlight ---
-static constexpr uint8_t BACKLIGHT_FULL = 255;
-static constexpr uint8_t BACKLIGHT_DIM  = 50;
-
 // --- SP1 protocol completeness ---
 static constexpr size_t ENTRIES_MAX      = 5;
 static constexpr size_t ENTRY_CHARS_MAX  = 128;
