@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 
 // --- BLE ---
 static constexpr const char* NUS_SERVICE_UUID =
@@ -36,3 +37,9 @@ static constexpr uint16_t COLOR_FOOTER_BG  = 0x2104;  // near-black grey
 // --- Backlight ---
 static constexpr uint8_t BACKLIGHT_FULL = 255;
 static constexpr uint8_t BACKLIGHT_DIM  = 50;
+
+// --- SP1 protocol completeness ---
+static constexpr size_t ENTRIES_MAX      = 5;
+static constexpr size_t ENTRY_CHARS_MAX  = 128;
+static constexpr size_t NAME_CHARS_MAX   = 32;
+static constexpr size_t STATUS_ACK_BUF   = 512;
