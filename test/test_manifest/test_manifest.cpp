@@ -167,6 +167,27 @@ void test_parse_real_bufo_manifest() {
   TEST_ASSERT_EQUAL_UINT8(0, m.stateVariantCount[MANIFEST_STATE_NAP]);
 }
 
+void test_active_set_and_get_roundtrip() {
+  _manifestResetForTest();
+  TEST_ASSERT_NULL(manifestActive());
+  TEST_ASSERT_TRUE(_manifestSetActiveFromJson(kBufoReal,
+                                              std::strlen(kBufoReal)));
+  const CharManifest* m = manifestActive();
+  TEST_ASSERT_NOT_NULL(m);
+  TEST_ASSERT_EQUAL_STRING("bufo", m->name);
+}
+
+void test_active_failed_parse_leaves_prior_intact() {
+  _manifestResetForTest();
+  TEST_ASSERT_TRUE(_manifestSetActiveFromJson(kBufoReal,
+                                              std::strlen(kBufoReal)));
+  const char* bad = "{not json";
+  TEST_ASSERT_FALSE(_manifestSetActiveFromJson(bad, std::strlen(bad)));
+  const CharManifest* m = manifestActive();
+  TEST_ASSERT_NOT_NULL(m);
+  TEST_ASSERT_EQUAL_STRING("bufo", m->name);  // prior stayed
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_active_initially_null);
@@ -184,5 +205,7 @@ int main(int, char**) {
   RUN_TEST(test_parse_state_array_over_cap_truncates_with_warning);
   RUN_TEST(test_parse_unknown_state_ignored);
   RUN_TEST(test_parse_real_bufo_manifest);
+  RUN_TEST(test_active_set_and_get_roundtrip);
+  RUN_TEST(test_active_failed_parse_leaves_prior_intact);
   return UNITY_END();
 }

@@ -144,8 +144,10 @@ void _manifestResetForTest() {
   std::memset(&active, 0, sizeof(active));
 }
 bool _manifestSetActiveFromJson(const char* json, size_t len) {
+  CharManifest staging;
   std::string err;
-  if (!manifestParseJson(json, len, active, err)) return false;
+  if (!manifestParseJson(json, len, staging, err)) return false;
+  active = staging;
   hasActive = true;
   return true;
 }
