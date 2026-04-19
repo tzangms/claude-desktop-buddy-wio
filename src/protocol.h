@@ -7,7 +7,11 @@ enum class MessageKind {
   Heartbeat,
   Owner,
   Time,
-  Unknown,  // includes "evt":"turn" and anything else we ignore
+  TurnEvent,
+  StatusCmd,
+  NameCmd,
+  UnpairCmd,
+  Unknown,
   ParseError,
 };
 
@@ -15,6 +19,7 @@ struct ParsedMessage {
   MessageKind kind = MessageKind::Unknown;
   HeartbeatData heartbeat;
   std::string ownerName;
+  std::string nameValue;
   int32_t timeEpoch = 0;
   int32_t timeOffsetSec = 0;
 };
@@ -25,3 +30,8 @@ ParsedMessage parseLine(const std::string& line);
 // Build a permission-decision JSON line terminated with '\n'.
 std::string formatPermission(const std::string& promptId,
                              PermissionDecision decision);
+
+// Build a generic ack JSON line terminated with '\n'.
+// If `error` is non-empty, it's included as `"error": "..."`.
+std::string formatAck(const std::string& cmd, bool ok,
+                      const std::string& error = "");

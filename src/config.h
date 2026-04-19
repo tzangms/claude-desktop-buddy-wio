@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 
 // --- BLE ---
 static constexpr const char* NUS_SERVICE_UUID =
@@ -14,7 +15,6 @@ static constexpr const char* DEVICE_NAME_PREFIX = "Claude-";
 
 // --- Timeouts (ms) ---
 static constexpr uint32_t HEARTBEAT_TIMEOUT_MS = 30000;
-static constexpr uint32_t BACKLIGHT_IDLE_MS    = 30000;
 static constexpr uint32_t ACK_DISPLAY_MS       = 1000;
 static constexpr uint32_t BUTTON_DEBOUNCE_MS   = 20;
 static constexpr uint32_t POST_SEND_LOCKOUT_MS = 500;
@@ -36,3 +36,8 @@ static constexpr uint16_t COLOR_FOOTER_BG  = 0x2104;  // near-black grey
 // --- Backlight ---
 static constexpr uint8_t BACKLIGHT_FULL = 255;
 static constexpr uint8_t BACKLIGHT_DIM  = 50;
+
+// --- SP1 protocol completeness ---
+static constexpr size_t ENTRIES_MAX      = 5;
+static constexpr size_t ENTRY_CHARS_MAX  = 128;
+static constexpr size_t NAME_CHARS_MAX   = 32;

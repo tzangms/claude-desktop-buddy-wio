@@ -2,15 +2,16 @@
 #include "config.h"
 #include "state.h"
 #include "protocol.h"
+#include "status.h"
 #include "ui.h"
 #include "buttons.h"
 #include "ble_nus.h"
+#include "mem.h"
 
 static AppState appState;
 static Mode lastRenderedMode = Mode::BleInit;
 static std::string lastRenderedPromptId;
 static uint32_t lastButtonSendMs = 0;
-static uint32_t lastInteractionMs = 0;
 static volatile bool pendingRender = false;
 static std::string cachedSuffix;
 
@@ -22,11 +23,6 @@ static std::string deviceSuffix() {
   snprintf(buf, sizeof(buf), "%04X", (unsigned)(id & 0xFFFF));
   cachedSuffix = buf;
   return cachedSuffix;
-}
-
-static void markInteraction(uint32_t now) {
-  lastInteractionMs = now;
-  setBacklight(100);
 }
 
 static void render(bool force) {
@@ -61,13 +57,32 @@ static void onLine(const std::string& line) {
           appState.mode == Mode::Disconnected) {
         applyConnected(appState);
       }
-      applyHeartbeat(appState, m.heartbeat, now);
+      applyHeartbeat(appState, std::move(m.heartbeat), now);
       pendingRender = true;
       break;
     case MessageKind::Owner:
       if (applyOwner(appState, m.ownerName)) pendingRender = true;
+      sendLine(formatAck("owner", true));
       break;
     case MessageKind::Time:
+      applyTime(appState, m.timeEpoch, m.timeOffsetSec, now);
+      break;
+    case MessageKind::StatusCmd: {
+      StatusSnapshot snap = captureStatus(appState, now);
+      sendLine(formatStatusAck(snap));
+      break;
+    }
+    case MessageKind::NameCmd: {
+      std::string err;
+      bool ok = applyNameCmd(appState, m.nameValue, err);
+      sendLine(formatAck("name", ok, err));
+      break;
+    }
+    case MessageKind::UnpairCmd:
+      sendLine(formatAck("unpair", true));
+      break;
+    case MessageKind::TurnEvent:
+      break;
     case MessageKind::Unknown:
     case MessageKind::ParseError:
       break;
@@ -81,6 +96,7 @@ void setup() {
   initButtons();
   renderBoot("BLE init...");
 
+  appState.deviceName = std::string(DEVICE_NAME_PREFIX) + deviceSuffix();
   appState.mode = Mode::BleInit;
   if (!initBle(deviceSuffix(), onLine)) {
     appState.mode = Mode::Fatal;
@@ -118,10 +134,7 @@ void loop() {
 
   if ((now - lastButtonSendMs) > POST_SEND_LOCKOUT_MS) {
     ButtonEvent e = pollButtons(now);
-    if (e == ButtonEvent::PressNav) {
-      markInteraction(now);
-    } else if (e == ButtonEvent::PressA || e == ButtonEvent::PressC) {
-      markInteraction(now);
+    if (e == ButtonEvent::PressA || e == ButtonEvent::PressC) {
       char btn = (e == ButtonEvent::PressA) ? 'A' : 'C';
       PermissionDecision d;
       std::string id;
@@ -135,12 +148,6 @@ void loop() {
   }
 
   if (applyTimeouts(appState, now)) render(true);
-
-  if (appState.mode == Mode::Idle &&
-      lastInteractionMs != 0 &&
-      (now - lastInteractionMs) > BACKLIGHT_IDLE_MS) {
-    setBacklight(20);
-  }
 
   delay(10);
 }

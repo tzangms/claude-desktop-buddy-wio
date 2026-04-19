@@ -1,5 +1,7 @@
 #include <unity.h>
+#include <cstring>
 #include "protocol.h"
+#include "status.h"
 
 void test_parse_heartbeat_basic() {
   std::string line = R"({"total":3,"running":1,"waiting":0,"msg":"working"})";
@@ -40,10 +42,10 @@ void test_parse_time() {
   TEST_ASSERT_EQUAL_INT32(-25200, m.timeOffsetSec);
 }
 
-void test_parse_turn_event_is_unknown() {
+void test_parse_turn_event() {
   std::string line = R"({"evt":"turn","role":"assistant","content":[]})";
   ParsedMessage m = parseLine(line);
-  TEST_ASSERT_EQUAL(static_cast<int>(MessageKind::Unknown),
+  TEST_ASSERT_EQUAL(static_cast<int>(MessageKind::TurnEvent),
                     static_cast<int>(m.kind));
 }
 
@@ -77,16 +79,139 @@ void test_parse_heartbeat_missing_optional_fields() {
   TEST_ASSERT_FALSE(m.heartbeat.hasPrompt);
 }
 
+void test_parse_status_cmd() {
+  std::string line = R"({"cmd":"status"})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(static_cast<int>(MessageKind::StatusCmd),
+                    static_cast<int>(m.kind));
+}
+
+void test_parse_unpair_cmd() {
+  std::string line = R"({"cmd":"unpair"})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(static_cast<int>(MessageKind::UnpairCmd),
+                    static_cast<int>(m.kind));
+}
+
+void test_parse_name_cmd_normal() {
+  std::string line = R"({"cmd":"name","name":"Clawd"})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(static_cast<int>(MessageKind::NameCmd),
+                    static_cast<int>(m.kind));
+  TEST_ASSERT_EQUAL_STRING("Clawd", m.nameValue.c_str());
+}
+
+void test_parse_name_cmd_empty() {
+  std::string line = R"({"cmd":"name","name":""})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(static_cast<int>(MessageKind::NameCmd),
+                    static_cast<int>(m.kind));
+  TEST_ASSERT_EQUAL_STRING("", m.nameValue.c_str());
+}
+
+void test_parse_heartbeat_entries() {
+  std::string line =
+      R"({"total":1,"running":1,"waiting":0,"msg":"busy",)"
+      R"("entries":["10:42 a","10:41 b","10:40 c"]})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(3u, m.heartbeat.entries.size());
+  TEST_ASSERT_EQUAL_STRING("10:42 a", m.heartbeat.entries[0].c_str());
+  TEST_ASSERT_EQUAL_STRING("10:40 c", m.heartbeat.entries[2].c_str());
+}
+
+void test_parse_heartbeat_entries_truncate_count() {
+  // 7 entries, ENTRIES_MAX=5 should keep first 5.
+  std::string line =
+      R"({"total":1,"running":0,"waiting":0,)"
+      R"("entries":["a","b","c","d","e","f","g"]})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(5u, m.heartbeat.entries.size());
+  TEST_ASSERT_EQUAL_STRING("e", m.heartbeat.entries[4].c_str());
+}
+
+void test_parse_heartbeat_entries_truncate_chars() {
+  std::string big(200, 'x');  // 200 chars
+  std::string line =
+      R"({"total":1,"running":0,"waiting":0,"entries":[")" + big + R"("]})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(1u, m.heartbeat.entries.size());
+  TEST_ASSERT_EQUAL(128u, m.heartbeat.entries[0].size());
+}
+
+void test_parse_heartbeat_no_entries_key() {
+  std::string line = R"({"total":1,"running":0,"waiting":0})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_TRUE(m.heartbeat.entries.empty());
+}
+
+void test_parse_heartbeat_tokens() {
+  std::string line =
+      R"({"total":1,"running":0,"waiting":0,"tokens":184502,"tokens_today":31200})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL_INT64(184502, m.heartbeat.tokens);
+  TEST_ASSERT_EQUAL_INT64(31200, m.heartbeat.tokens_today);
+}
+
+void test_parse_heartbeat_tokens_missing_defaults_zero() {
+  std::string line = R"({"total":1,"running":0,"waiting":0})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL_INT64(0, m.heartbeat.tokens);
+  TEST_ASSERT_EQUAL_INT64(0, m.heartbeat.tokens_today);
+}
+
+void test_format_ack_ok() {
+  std::string out = formatAck("owner", true);
+  TEST_ASSERT_EQUAL_STRING(R"({"ack":"owner","ok":true})" "\n", out.c_str());
+}
+
+void test_format_ack_err() {
+  std::string out = formatAck("name", false, "empty name");
+  TEST_ASSERT_EQUAL_STRING(
+      R"({"ack":"name","ok":false,"error":"empty name"})" "\n",
+      out.c_str());
+}
+
+void test_format_status_ack_shape() {
+  StatusSnapshot snap;
+  snap.name = "Claude-52DA";
+  snap.sec = false;
+  snap.upSec = 12;
+  snap.heapFree = 80000;
+  std::string out = formatStatusAck(snap);
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("ack":"status")"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("ok":true)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("name":"Claude-52DA")"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("sec":false)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("usb":true)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("up":12)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("heap":80000)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("lvl":0)"));
+  TEST_ASSERT_EQUAL('\n', out.back());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_parse_heartbeat_basic);
   RUN_TEST(test_parse_heartbeat_with_prompt);
   RUN_TEST(test_parse_owner);
   RUN_TEST(test_parse_time);
-  RUN_TEST(test_parse_turn_event_is_unknown);
+  RUN_TEST(test_parse_turn_event);
+  RUN_TEST(test_parse_status_cmd);
+  RUN_TEST(test_parse_unpair_cmd);
   RUN_TEST(test_parse_malformed_is_error);
   RUN_TEST(test_format_permission_approve);
   RUN_TEST(test_format_permission_deny);
   RUN_TEST(test_parse_heartbeat_missing_optional_fields);
+  RUN_TEST(test_parse_name_cmd_normal);
+  RUN_TEST(test_parse_name_cmd_empty);
+  RUN_TEST(test_parse_heartbeat_entries);
+  RUN_TEST(test_parse_heartbeat_entries_truncate_count);
+  RUN_TEST(test_parse_heartbeat_entries_truncate_chars);
+  RUN_TEST(test_parse_heartbeat_no_entries_key);
+  RUN_TEST(test_parse_heartbeat_tokens);
+  RUN_TEST(test_parse_heartbeat_tokens_missing_defaults_zero);
+  RUN_TEST(test_format_ack_ok);
+  RUN_TEST(test_format_ack_err);
+  RUN_TEST(test_format_status_ack_shape);
   return UNITY_END();
 }
