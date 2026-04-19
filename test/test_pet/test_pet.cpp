@@ -4,18 +4,24 @@
 #include "state.h"
 #include "config.h"
 
+// Helper: force both overrides to expire so petComputeState returns
+// mode-derived state. Calling petTriggerCelebrate/Heart at 0 sets
+// celebrateUntilMs = PET_CELEBRATE_MS; calling petComputeState at a
+// sufficiently large nowMs returns the mode-derived state again.
+static constexpr uint32_t FAR_FUTURE = 1000000;
+
 void test_sleep_when_advertising() {
   AppState s;
   s.mode = Mode::Advertising;
   TEST_ASSERT_EQUAL(static_cast<int>(PetState::Sleep),
-                    static_cast<int>(petComputeState(s)));
+                    static_cast<int>(petComputeState(s, FAR_FUTURE)));
 }
 
 void test_sleep_when_disconnected() {
   AppState s;
   s.mode = Mode::Disconnected;
   TEST_ASSERT_EQUAL(static_cast<int>(PetState::Sleep),
-                    static_cast<int>(petComputeState(s)));
+                    static_cast<int>(petComputeState(s, FAR_FUTURE)));
 }
 
 void test_idle_when_no_running() {
@@ -23,7 +29,7 @@ void test_idle_when_no_running() {
   s.mode = Mode::Idle;
   s.hb.running = 0;
   TEST_ASSERT_EQUAL(static_cast<int>(PetState::Idle),
-                    static_cast<int>(petComputeState(s)));
+                    static_cast<int>(petComputeState(s, FAR_FUTURE)));
 }
 
 void test_busy_when_running_gt_zero() {
@@ -31,14 +37,14 @@ void test_busy_when_running_gt_zero() {
   s.mode = Mode::Idle;
   s.hb.running = 2;
   TEST_ASSERT_EQUAL(static_cast<int>(PetState::Busy),
-                    static_cast<int>(petComputeState(s)));
+                    static_cast<int>(petComputeState(s, FAR_FUTURE)));
 }
 
 void test_attention_when_prompt_mode() {
   AppState s;
   s.mode = Mode::Prompt;
   TEST_ASSERT_EQUAL(static_cast<int>(PetState::Attention),
-                    static_cast<int>(petComputeState(s)));
+                    static_cast<int>(petComputeState(s, FAR_FUTURE)));
 }
 
 void test_ack_with_running_is_busy() {
@@ -46,12 +52,13 @@ void test_ack_with_running_is_busy() {
   s.mode = Mode::Ack;
   s.hb.running = 1;
   TEST_ASSERT_EQUAL(static_cast<int>(PetState::Busy),
-                    static_cast<int>(petComputeState(s)));
+                    static_cast<int>(petComputeState(s, FAR_FUTURE)));
 }
 
 void test_face_rows_non_null_all_frames() {
   const PetState states[] = {
-    PetState::Sleep, PetState::Idle, PetState::Busy, PetState::Attention,
+    PetState::Sleep, PetState::Idle, PetState::Busy,
+    PetState::Attention, PetState::Celebrate, PetState::Heart,
   };
   for (PetState s : states) {
     for (size_t f = 0; f < PET_FRAMES_PER_STATE; ++f) {
@@ -96,6 +103,39 @@ void test_reset_snaps_to_zero() {
   TEST_ASSERT_EQUAL(0, petCurrentFrame());
 }
 
+void test_celebrate_overrides_idle() {
+  AppState s;
+  s.mode = Mode::Idle;
+  uint32_t now = 100000;
+  petTriggerCelebrate(now);
+  TEST_ASSERT_EQUAL(static_cast<int>(PetState::Celebrate),
+                    static_cast<int>(petComputeState(s, now + 100)));
+  // After expiry, mode-derived state returns.
+  TEST_ASSERT_EQUAL(static_cast<int>(PetState::Idle),
+                    static_cast<int>(petComputeState(s, now + PET_CELEBRATE_MS + 1)));
+}
+
+void test_heart_overrides_idle() {
+  AppState s;
+  s.mode = Mode::Idle;
+  uint32_t now = 200000;
+  petTriggerHeart(now);
+  TEST_ASSERT_EQUAL(static_cast<int>(PetState::Heart),
+                    static_cast<int>(petComputeState(s, now + 100)));
+  TEST_ASSERT_EQUAL(static_cast<int>(PetState::Idle),
+                    static_cast<int>(petComputeState(s, now + PET_HEART_MS + 1)));
+}
+
+void test_celebrate_outranks_heart() {
+  AppState s;
+  s.mode = Mode::Idle;
+  uint32_t now = 300000;
+  petTriggerHeart(now);
+  petTriggerCelebrate(now);
+  TEST_ASSERT_EQUAL(static_cast<int>(PetState::Celebrate),
+                    static_cast<int>(petComputeState(s, now + 100)));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_sleep_when_advertising);
@@ -109,5 +149,8 @@ int main(int, char**) {
   RUN_TEST(test_tick_advances_at_window);
   RUN_TEST(test_tick_wraps);
   RUN_TEST(test_reset_snaps_to_zero);
+  RUN_TEST(test_celebrate_overrides_idle);
+  RUN_TEST(test_heart_overrides_idle);
+  RUN_TEST(test_celebrate_outranks_heart);
   return UNITY_END();
 }

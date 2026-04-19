@@ -164,14 +164,21 @@ void renderIdle(const AppState& s, bool fullRedraw) {
     lastEntries = s.hb.entries;
   }
 
-  PetState st = petComputeState(s);
+  uint32_t now = millis();
+  PetState st = petComputeState(s, now);
   if (st != lastPet) {
-    petResetFrame(millis());
+    petResetFrame(now);
     lastFrame = (size_t)-1;
   }
   size_t frame = petCurrentFrame();
   if (st != lastPet || frame != lastFrame) {
-    uint16_t petColour = (st == PetState::Attention) ? COLOR_ALERT_FG : COLOR_OK;
+    uint16_t petColour;
+    switch (st) {
+      case PetState::Attention: petColour = COLOR_ALERT_FG; break;
+      case PetState::Celebrate: petColour = COLOR_WARN; break;
+      case PetState::Heart:     petColour = COLOR_ALERT_FG; break;
+      default:                  petColour = COLOR_OK; break;
+    }
     tft.fillRect(120, 188, 80, 32, COLOR_BG);
     tft.setTextColor(petColour, COLOR_BG);
     tft.setTextSize(1);

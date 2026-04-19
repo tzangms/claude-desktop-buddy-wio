@@ -63,9 +63,11 @@ static void onLine(const std::string& line) {
       bool newPrompt = m.heartbeat.hasPrompt &&
                        (!appState.hb.hasPrompt ||
                         m.heartbeat.prompt.id != appState.hb.prompt.id);
+      int32_t lvlBefore = persistGet().lvl;
       applyHeartbeat(appState, std::move(m.heartbeat), now);
       persistUpdateFromHeartbeat(appState.hb.tokens, appState.hb.tokens_today);
       persistCommit(false);
+      if (persistGet().lvl > lvlBefore) petTriggerCelebrate(now);
       if (newPrompt) backlightWake(now);
       pendingRender = true;
       break;
@@ -158,11 +160,16 @@ void loop() {
     }
     if (e == ButtonEvent::PressA || e == ButtonEvent::PressC) {
       char btn = (e == ButtonEvent::PressA) ? 'A' : 'C';
+      uint32_t promptAge = now - appState.promptArrivedMs;
       PermissionDecision d;
       std::string id;
       if (applyButton(appState, btn, now, d, id)) {
-        if (btn == 'A') persistIncAppr();
-        else            persistIncDeny();
+        if (btn == 'A') {
+          persistIncAppr();
+          if (promptAge < PET_APPROVE_HEART_WINDOW_MS) petTriggerHeart(now);
+        } else {
+          persistIncDeny();
+        }
         std::string line = formatPermission(id, d);
         sendLine(line);
         lastButtonSendMs = now;

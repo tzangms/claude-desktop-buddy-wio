@@ -47,5 +47,8 @@ static constexpr uint32_t PERSIST_DEBOUNCE_MS     = 300000;
 static constexpr int64_t  PERSIST_DEBOUNCE_TOKENS = 1000;
 static constexpr int64_t  TOKENS_PER_LEVEL        = 50000;
 
-// --- SP4a.1 pet animations ---
-static constexpr uint32_t PET_FRAME_MS = 500;
+// --- SP4a.1 / SP4b.2 pet animations ---
+static constexpr uint32_t PET_FRAME_MS                = 500;
+static constexpr uint32_t PET_CELEBRATE_MS            = 3000;
+static constexpr uint32_t PET_HEART_MS                = 3000;
+static constexpr uint32_t PET_APPROVE_HEART_WINDOW_MS = 5000;
