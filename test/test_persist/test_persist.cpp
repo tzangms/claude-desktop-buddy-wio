@@ -65,11 +65,23 @@ void test_init_rejects_wrong_version() {
   TEST_ASSERT_EQUAL_UINT32(PERSIST_VERSION, persistGet().version);
 }
 
+void test_commit_immediate_flushes_now() {
+  _persistResetFakeFile();
+  persistInit();
+  int before = _persistWriteCount();
+  persistMut().appr = 7;
+  persistCommit(true);
+  TEST_ASSERT_EQUAL(before + 1, _persistWriteCount());
+  persistInit();
+  TEST_ASSERT_EQUAL_INT32(7, persistGet().appr);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_init_empty_uses_defaults);
   RUN_TEST(test_init_loads_existing_data);
   RUN_TEST(test_init_rejects_wrong_magic);
   RUN_TEST(test_init_rejects_wrong_version);
+  RUN_TEST(test_commit_immediate_flushes_now);
   return UNITY_END();
 }
