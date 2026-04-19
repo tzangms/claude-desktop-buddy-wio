@@ -53,4 +53,5 @@ const CharManifest* manifestActive();
 // Test-only hooks.
 void _manifestResetForTest();
 bool _manifestSetActiveFromJson(const char* json, size_t len);
+uint16_t _manifestHex24ToRgb565(const char* hex);
 #endif
