@@ -10,20 +10,26 @@ enum class PetState {
   Idle,
   Busy,
   Attention,
+  Celebrate,
+  Heart,
 };
 
 static constexpr size_t PET_FACE_LINES = 4;
 static constexpr size_t PET_FRAMES_PER_STATE = 3;
 
-PetState petComputeState(const AppState& s);
+// Compute current pet state. Time-limited overrides (Celebrate / Heart)
+// take priority over mode-derived states until they expire.
+PetState petComputeState(const AppState& s, uint32_t nowMs);
 
-// Rows for a given state and frame index (0..PET_FRAMES_PER_STATE-1).
+// Rows for a given state and frame index.
 const char* const* petFace(PetState state, size_t frameIdx);
 
-// Animation tick. Returns true if the frame index advanced.
+// Animation tick.
 bool petTickFrame(uint32_t nowMs);
-
 size_t petCurrentFrame();
-
-// Snap frame to 0 and anchor the tick clock.
 void petResetFrame(uint32_t nowMs);
+
+// Time-limited state overrides. Each sets an expiry so petComputeState
+// will return the given state until nowMs passes the expiry.
+void petTriggerCelebrate(uint32_t nowMs);
+void petTriggerHeart(uint32_t nowMs);

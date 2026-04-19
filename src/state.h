@@ -42,6 +42,7 @@ struct AppState {
   int32_t     timeOffsetSec = 0;
   uint32_t    timeSetAtMs = 0;
   uint32_t lastHeartbeatMs = 0;
+  uint32_t promptArrivedMs = 0;  // millis() stamp for the current prompt
   bool ackApproved = false;
   uint32_t ackUntilMs = 0;
 };

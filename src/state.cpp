@@ -4,12 +4,17 @@
 bool applyHeartbeat(AppState& s, HeartbeatData hb, uint32_t nowMs) {
   Mode prev = s.mode;
   std::string prevPromptId = s.hb.prompt.id;
+  bool prevHasPrompt = s.hb.hasPrompt;
   bool hasPrompt = hb.hasPrompt;
+  std::string newPromptId = hb.prompt.id;
   s.hb = std::move(hb);
   s.lastHeartbeatMs = nowMs;
 
   if (hasPrompt) {
     s.mode = Mode::Prompt;
+    if (!prevHasPrompt || prevPromptId != newPromptId) {
+      s.promptArrivedMs = nowMs;
+    }
   } else if (s.mode != Mode::Ack) {
     s.mode = Mode::Idle;
   }
