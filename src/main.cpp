@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <cstring>
 #include "config.h"
 #include "state.h"
 #include "protocol.h"
@@ -8,6 +9,7 @@
 #include "ble_nus.h"
 #include "mem.h"
 #include "backlight.h"
+#include "persist.h"
 
 static AppState appState;
 static Mode lastRenderedMode = Mode::BleInit;
@@ -62,12 +64,17 @@ static void onLine(const std::string& line) {
                        (!appState.hb.hasPrompt ||
                         m.heartbeat.prompt.id != appState.hb.prompt.id);
       applyHeartbeat(appState, std::move(m.heartbeat), now);
+      persistUpdateFromHeartbeat(appState.hb.tokens, appState.hb.tokens_today);
+      persistCommit(false);
       if (newPrompt) backlightWake(now);
       pendingRender = true;
       break;
     }
     case MessageKind::Owner:
       if (applyOwner(appState, m.ownerName)) pendingRender = true;
+      std::strncpy(persistMut().ownerName, m.ownerName.c_str(), 32);
+      persistMut().ownerName[32] = '\0';
+      persistCommit(true);
       sendLine(formatAck("owner", true));
       break;
     case MessageKind::Time:
@@ -81,6 +88,11 @@ static void onLine(const std::string& line) {
     case MessageKind::NameCmd: {
       std::string err;
       bool ok = applyNameCmd(appState, m.nameValue, err);
+      if (ok) {
+        std::strncpy(persistMut().deviceName, appState.deviceName.c_str(), 32);
+        persistMut().deviceName[32] = '\0';
+        persistCommit(true);
+      }
       sendLine(formatAck("name", ok, err));
       break;
     }
@@ -101,9 +113,17 @@ void setup() {
   initUi();
   initButtons();
   backlightInit();
+  persistInit();
+  if (persistGet().deviceName[0] == '\0') {
+    std::string def = std::string(DEVICE_NAME_PREFIX) + deviceSuffix();
+    std::strncpy(persistMut().deviceName, def.c_str(), 32);
+    persistMut().deviceName[32] = '\0';
+    persistCommit(true);
+  }
   renderBoot("BLE init...");
 
-  appState.deviceName = std::string(DEVICE_NAME_PREFIX) + deviceSuffix();
+  appState.deviceName = persistGet().deviceName;
+  appState.ownerName  = persistGet().ownerName;
   appState.mode = Mode::BleInit;
   if (!initBle(deviceSuffix(), onLine)) {
     appState.mode = Mode::Fatal;
@@ -149,6 +169,9 @@ void loop() {
       PermissionDecision d;
       std::string id;
       if (applyButton(appState, btn, now, d, id)) {
+        if (btn == 'A') persistMut().appr++;
+        else            persistMut().deny++;
+        persistCommit(true);
         std::string line = formatPermission(id, d);
         sendLine(line);
         lastButtonSendMs = now;
@@ -160,6 +183,7 @@ void loop() {
   if (applyTimeouts(appState, now)) render(true);
 
   backlightTick(appState, now);
+  persistTick(now);
 
   delay(10);
 }
