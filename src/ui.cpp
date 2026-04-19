@@ -33,11 +33,6 @@ void initUi() {
   clearAll();
 }
 
-void setBacklight(uint8_t pct) {
-  if (pct > 100) pct = 100;
-  analogWrite(LCD_BACKLIGHT, (uint8_t)((uint16_t)BACKLIGHT_FULL * pct / 100));
-}
-
 void renderBoot(const char* msg) {
   clearAll();
   drawHeader("Claude Buddy", COLOR_BG, COLOR_FG);

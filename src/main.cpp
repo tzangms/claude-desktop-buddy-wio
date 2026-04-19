@@ -12,7 +12,6 @@ static AppState appState;
 static Mode lastRenderedMode = Mode::BleInit;
 static std::string lastRenderedPromptId;
 static uint32_t lastButtonSendMs = 0;
-static uint32_t lastInteractionMs = 0;
 static volatile bool pendingRender = false;
 static std::string cachedSuffix;
 
@@ -24,11 +23,6 @@ static std::string deviceSuffix() {
   snprintf(buf, sizeof(buf), "%04X", (unsigned)(id & 0xFFFF));
   cachedSuffix = buf;
   return cachedSuffix;
-}
-
-static void markInteraction(uint32_t now) {
-  lastInteractionMs = now;
-  setBacklight(100);
 }
 
 static void render(bool force) {
@@ -141,9 +135,6 @@ void loop() {
 
   if ((now - lastButtonSendMs) > POST_SEND_LOCKOUT_MS) {
     ButtonEvent e = pollButtons(now);
-    if (e != ButtonEvent::None) {
-      markInteraction(now);
-    }
     if (e == ButtonEvent::PressA || e == ButtonEvent::PressC) {
       char btn = (e == ButtonEvent::PressA) ? 'A' : 'C';
       PermissionDecision d;
@@ -158,16 +149,6 @@ void loop() {
   }
 
   if (applyTimeouts(appState, now)) render(true);
-
-  // LCD_BACKLIGHT on Wio Terminal is NOT_ON_PWM, so analogWrite falls back
-  // to a digital threshold at 128: <128 → off, >=128 → full on. Treat the
-  // idle timeout as a hard off (setBacklight(0)); markInteraction restores
-  // to full on via setBacklight(100).
-  if (appState.mode == Mode::Idle &&
-      lastInteractionMs != 0 &&
-      (now - lastInteractionMs) > BACKLIGHT_IDLE_MS) {
-    setBacklight(0);
-  }
 
   delay(10);
 }

@@ -15,7 +15,6 @@ static constexpr const char* DEVICE_NAME_PREFIX = "Claude-";
 
 // --- Timeouts (ms) ---
 static constexpr uint32_t HEARTBEAT_TIMEOUT_MS = 30000;
-static constexpr uint32_t BACKLIGHT_IDLE_MS    = 30000;
 static constexpr uint32_t ACK_DISPLAY_MS       = 1000;
 static constexpr uint32_t BUTTON_DEBOUNCE_MS   = 20;
 static constexpr uint32_t POST_SEND_LOCKOUT_MS = 500;
