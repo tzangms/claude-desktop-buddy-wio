@@ -2,6 +2,8 @@
 
 #include <cstring>
 
+#include <ArduinoJson.h>
+
 namespace {
   int hexDigit(char c) {
     if (c >= '0' && c <= '9') return c - '0';
@@ -27,6 +29,22 @@ namespace {
            ((uint16_t)(b & 0xF8) >> 3);
   }
 
+  bool readRequiredColor(JsonObjectConst colors, const char* key,
+                         uint16_t& out, std::string& err) {
+    if (!colors.containsKey(key)) {
+      err = std::string("colors.") + key + " missing";
+      return false;
+    }
+    const char* hex = colors[key] | "";
+    uint8_t r, g, b;
+    if (!parseHex24(hex, r, g, b)) {
+      err = std::string("colors.") + key + " not #RRGGBB";
+      return false;
+    }
+    out = rgb565(r, g, b);
+    return true;
+  }
+
   bool hasActive = false;
   CharManifest active;
 }
@@ -37,9 +55,34 @@ uint16_t _manifestHex24ToRgb565(const char* hex) {
   return rgb565(r, g, b);
 }
 
-bool manifestParseJson(const char*, size_t, CharManifest&, std::string& err) {
-  err = "not implemented";
-  return false;
+bool manifestParseJson(const char* json, size_t len,
+                       CharManifest& out, std::string& err) {
+  err.clear();
+  std::memset(&out, 0, sizeof(out));
+
+  DynamicJsonDocument doc(4096);
+  DeserializationError de = deserializeJson(doc, json, len);
+  if (de) { err = de.c_str(); return false; }
+
+  JsonObjectConst root = doc.as<JsonObjectConst>();
+
+  const char* name = root["name"] | "";
+  if (name[0] == '\0') { err = "name missing"; return false; }
+  std::strncpy(out.name, name, MANIFEST_NAME_MAX);
+  out.name[MANIFEST_NAME_MAX] = '\0';
+
+  if (!root.containsKey("colors") || !root["colors"].is<JsonObjectConst>()) {
+    err = "colors missing"; return false;
+  }
+  JsonObjectConst colors = root["colors"].as<JsonObjectConst>();
+  if (!readRequiredColor(colors, "body",    out.colorBody,    err)) return false;
+  if (!readRequiredColor(colors, "bg",      out.colorBg,      err)) return false;
+  if (!readRequiredColor(colors, "text",    out.colorText,    err)) return false;
+  if (!readRequiredColor(colors, "textDim", out.colorTextDim, err)) return false;
+  if (!readRequiredColor(colors, "ink",     out.colorInk,     err)) return false;
+
+  // states parsed in Task 4.
+  return true;
 }
 
 bool manifestSetActive(const char*) { return false; }
