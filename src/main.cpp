@@ -245,9 +245,15 @@ void loop() {
 
   backlightTick(appState, now);
   persistTick(now);
+  // Track mode transitions so re-entering Idle from Prompt/Ack triggers
+  // a characterSetState even when PetState is unchanged — otherwise
+  // renderIdle's characterInvalidate leaves the buddy slot blank until
+  // PetState changes (bug from SP6b initial wiring).
+  static Mode lastCharMode = Mode::BleInit;
   if (appState.mode == Mode::Idle && characterReady()) {
     static PetState lastCharState = PetState::Sleep;
     static bool     lastCharInit  = false;
+    if (lastCharMode != Mode::Idle) lastCharInit = false;
     PetState charSt = petComputeState(appState, now);
     if (!lastCharInit || charSt != lastCharState) {
       characterSetState(charSt);
@@ -256,6 +262,7 @@ void loop() {
     }
     characterTick(now);
   }
+  lastCharMode = appState.mode;
 
   // Pet (ASCII fallback) tick still drives PetState-cache for renderIdle
   // when characterReady() is false. Harmless when buddy is active — no

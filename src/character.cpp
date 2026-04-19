@@ -266,7 +266,8 @@ void characterInvalidate() {
   if (gifOpen) { gif.close(); gifOpen = false; }
   animPauseUntil = 0;
   nextFrameAt = 0;
-  // Next characterTick (after characterSetState) reopens and repaints.
+  // Caller is responsible for re-triggering characterSetState after a
+  // full UI redraw — characterTick alone does not reopen the GIF.
 }
 #else
 void characterInvalidate() {}
