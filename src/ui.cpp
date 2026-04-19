@@ -114,7 +114,8 @@ void renderIdle(const AppState& s, bool fullRedraw) {
   }
 }
 
-void renderPrompt(const AppState& s) {
+void renderPrompt(const AppState& s, bool fullRedraw) {
+  if (!fullRedraw) return;
   clearAll();
   drawHeader("! PERMISSION REQUESTED", COLOR_ALERT_BG, COLOR_ALERT_TEXT);
 

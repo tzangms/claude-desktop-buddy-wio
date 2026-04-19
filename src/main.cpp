@@ -39,7 +39,7 @@ static void render(bool force) {
     }
     case Mode::Connected:    renderConnected(); break;
     case Mode::Idle:         renderIdle(appState, modeChanged); break;
-    case Mode::Prompt:       renderPrompt(appState); break;
+    case Mode::Prompt:       renderPrompt(appState, modeChanged || promptChanged); break;
     case Mode::Ack:          renderAck(appState); break;
     case Mode::Disconnected: renderDisconnected(); break;
     case Mode::Fatal:        renderFatal("see serial"); break;
