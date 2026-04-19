@@ -1,8 +1,9 @@
 #include "ui.h"
 #include "config.h"
 #include "persist.h"
+#include "pet.h"
 #include <Arduino.h>
-#include <algorithm>
+#include <cstring>
 #include "TFT_eSPI.h"
 
 static TFT_eSPI tft;
@@ -125,14 +126,37 @@ void renderIdle(const AppState& s, bool fullRedraw) {
   tft.setCursor(8, 128);
   tft.print(s.hb.msg.c_str());
 
-  // Transcript (up to 3 lines)
-  tft.fillRect(0, 145, SCREEN_W, 70, COLOR_BG);
+  // Transcript (up to 2 lines — shrunk from 3 to make room for pet)
+  tft.fillRect(0, 145, SCREEN_W, 40, COLOR_BG);
   tft.setTextColor(COLOR_DIM, COLOR_BG);
   tft.setTextSize(1);
-  size_t n = std::min(s.hb.entries.size(), (size_t)3);
+  size_t n = s.hb.entries.size() < 2 ? s.hb.entries.size() : 2;
   for (size_t i = 0; i < n; ++i) {
-    tft.setCursor(8, 148 + (int)i * 22);
+    tft.setCursor(8, 148 + (int)i * 18);
     tft.print(s.hb.entries[i].c_str());
+  }
+
+  // Pet face — centered, above footer
+  PetState st = petComputeState(s);
+  uint16_t petColour = (st == PetState::Attention) ? COLOR_ALERT_BG : COLOR_OK;
+  tft.fillRect(120, 188, 80, 32, COLOR_BG);
+  tft.setTextColor(petColour, COLOR_BG);
+  tft.setTextSize(1);
+  const char* face = petFace(st);
+  const char* line = face;
+  int row = 0;
+  while (line && *line) {
+    const char* nl = strchr(line, '\n');
+    size_t len = nl ? (size_t)(nl - line) : strlen(line);
+    char buf[12];
+    size_t copy = len < sizeof(buf) - 1 ? len : sizeof(buf) - 1;
+    memcpy(buf, line, copy);
+    buf[copy] = '\0';
+    tft.setCursor(130, 188 + row * 8);
+    tft.print(buf);
+    if (!nl) break;
+    line = nl + 1;
+    ++row;
   }
 
   // Footer: owner greeting
