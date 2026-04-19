@@ -174,7 +174,10 @@ void renderIdle(const AppState& s, bool fullRedraw) {
     lastFrame = (size_t)-1;
   }
   size_t frame = petCurrentFrame();
-  if (st != lastPet || frame != lastFrame) {
+  // ASCII pet is the fallback — skip entirely when characterTick owns the
+  // buddy slot, otherwise the 500ms ASCII repaint fights the GIF render
+  // on the same rect and the screen flickers.
+  if (!characterReady() && (st != lastPet || frame != lastFrame)) {
     uint16_t petColour;
     switch (st) {
       case PetState::Attention: petColour = COLOR_ALERT_FG; break;
@@ -184,12 +187,9 @@ void renderIdle(const AppState& s, bool fullRedraw) {
       case PetState::Nap:       petColour = COLOR_DIM;      break;
       default:                  petColour = COLOR_OK;       break;
     }
-    // ASCII pet renders in the buddy slot. SP6b's characterTick paints
-    // over this on the same rect when characterReady(); ui.cpp doesn't
-    // need to know which path is active because both respect BUDDY_*.
     tft.fillRect(BUDDY_X, BUDDY_Y, BUDDY_W, BUDDY_H, COLOR_BG);
     tft.setTextColor(petColour, COLOR_BG);
-    tft.setTextSize(2);   // bigger ASCII for the larger slot
+    tft.setTextSize(2);
     const char* const* rows = petFace(st, frame);
     for (size_t i = 0; i < PET_FACE_LINES; ++i) {
       tft.setCursor(BUDDY_X + 8, BUDDY_Y + 20 + (int)i * 16);
