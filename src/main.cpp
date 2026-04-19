@@ -12,6 +12,7 @@
 #include "pet.h"
 #include "xfer.h"
 #include "manifest.h"
+#include "character.h"
 
 static AppState appState;
 static Mode lastRenderedMode = Mode::BleInit;
@@ -145,6 +146,7 @@ void setup() {
   backlightInit();
   persistInit();
   manifestLoadActiveFromPersist();
+  characterInit();
   xferInit();
   if (persistGet().deviceName[0] == '\0') {
     std::string def = std::string(DEVICE_NAME_PREFIX) + deviceSuffix();
@@ -243,9 +245,21 @@ void loop() {
 
   backlightTick(appState, now);
   persistTick(now);
-  // Pet is only visible on the Idle screen; only gating renders there
-  // prevents the 500ms frame tick from repainting Advertising / Connected
-  // / Disconnected screens (which previously caused visible flicker).
+  if (appState.mode == Mode::Idle && characterReady()) {
+    static PetState lastCharState = PetState::Sleep;
+    static bool     lastCharInit  = false;
+    PetState charSt = petComputeState(appState, now);
+    if (!lastCharInit || charSt != lastCharState) {
+      characterSetState(charSt);
+      lastCharState = charSt;
+      lastCharInit  = true;
+    }
+    characterTick(now);
+  }
+
+  // Pet (ASCII fallback) tick still drives PetState-cache for renderIdle
+  // when characterReady() is false. Harmless when buddy is active — no
+  // ui.cpp render occurs during the buddy frame window (Idle cached).
   bool petAdvanced = petTickFrame(now);
   if (petAdvanced && appState.mode == Mode::Idle) pendingRender = true;
 

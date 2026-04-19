@@ -100,6 +100,7 @@ void renderIdle(const AppState& s, bool fullRedraw) {
     lastTotal = INT32_MIN; lastRunning = INT32_MIN; lastWaiting = INT32_MIN;
     lastMsg.clear(); lastEntries.clear();
     lastPet = (PetState)-1; lastFrame = (size_t)-1; lastOwner.clear();
+    characterInvalidate();   // buddy region was wiped by clearAll()
   }
 
   int32_t lvl = persistGet().lvl;
