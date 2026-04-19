@@ -47,6 +47,12 @@ ParsedMessage parseLine(const std::string& line) {
     return m;
   }
 
+  if (doc["cmd"] == "name") {
+    m.kind = MessageKind::NameCmd;
+    m.nameValue = doc["name"] | "";
+    return m;
+  }
+
   if (doc.containsKey("time") && doc["time"].is<JsonArray>()) {
     JsonArray a = doc["time"].as<JsonArray>();
     if (a.size() >= 2) {

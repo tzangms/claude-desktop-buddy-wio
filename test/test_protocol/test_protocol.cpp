@@ -91,6 +91,22 @@ void test_parse_unpair_cmd() {
                     static_cast<int>(m.kind));
 }
 
+void test_parse_name_cmd_normal() {
+  std::string line = R"({"cmd":"name","name":"Clawd"})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(static_cast<int>(MessageKind::NameCmd),
+                    static_cast<int>(m.kind));
+  TEST_ASSERT_EQUAL_STRING("Clawd", m.nameValue.c_str());
+}
+
+void test_parse_name_cmd_empty() {
+  std::string line = R"({"cmd":"name","name":""})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(static_cast<int>(MessageKind::NameCmd),
+                    static_cast<int>(m.kind));
+  TEST_ASSERT_EQUAL_STRING("", m.nameValue.c_str());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_parse_heartbeat_basic);
@@ -104,5 +120,7 @@ int main(int, char**) {
   RUN_TEST(test_format_permission_approve);
   RUN_TEST(test_format_permission_deny);
   RUN_TEST(test_parse_heartbeat_missing_optional_fields);
+  RUN_TEST(test_parse_name_cmd_normal);
+  RUN_TEST(test_parse_name_cmd_empty);
   return UNITY_END();
 }

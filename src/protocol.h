@@ -19,6 +19,7 @@ struct ParsedMessage {
   MessageKind kind = MessageKind::Unknown;
   HeartbeatData heartbeat;
   std::string ownerName;
+  std::string nameValue;        // for NameCmd
   int32_t timeEpoch = 0;
   int32_t timeOffsetSec = 0;
 };
