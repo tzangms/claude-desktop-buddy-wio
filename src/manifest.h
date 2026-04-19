@@ -51,6 +51,9 @@ const CharManifest* manifestActive();
 
 #ifdef ARDUINO
 bool manifestParseFile(const char* path, CharManifest& out, std::string& err);
+// Rehydrate the active-manifest cache from flash using the name stored in
+// persist. Best-effort — silent on missing name or parse failure.
+void manifestLoadActiveFromPersist();
 #endif
 
 #ifndef ARDUINO

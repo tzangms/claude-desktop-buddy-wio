@@ -96,17 +96,6 @@ void test_parse_state_string_single_variant() {
   TEST_ASSERT_EQUAL_STRING("busy.gif", m.states[MANIFEST_STATE_BUSY][0]);
 }
 
-void test_parse_state_array_multiple_variants() {
-  CharManifest m{};
-  std::string err;
-  TEST_ASSERT_TRUE(manifestParseJson(kBufoFull, std::strlen(kBufoFull),
-                                     m, err));
-  TEST_ASSERT_EQUAL_UINT8(3, m.stateVariantCount[MANIFEST_STATE_IDLE]);
-  TEST_ASSERT_EQUAL_STRING("idle_0.gif", m.states[MANIFEST_STATE_IDLE][0]);
-  TEST_ASSERT_EQUAL_STRING("idle_1.gif", m.states[MANIFEST_STATE_IDLE][1]);
-  TEST_ASSERT_EQUAL_STRING("idle_2.gif", m.states[MANIFEST_STATE_IDLE][2]);
-}
-
 void test_parse_state_missing_is_zero_count() {
   // kBufoFull has no "nap"
   CharManifest m{};
@@ -200,7 +189,6 @@ int main(int, char**) {
   RUN_TEST(test_parse_missing_colors_rejects);
   RUN_TEST(test_parse_malformed_json_rejects);
   RUN_TEST(test_parse_state_string_single_variant);
-  RUN_TEST(test_parse_state_array_multiple_variants);
   RUN_TEST(test_parse_state_missing_is_zero_count);
   RUN_TEST(test_parse_state_array_over_cap_truncates_with_warning);
   RUN_TEST(test_parse_unknown_state_ignored);

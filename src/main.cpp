@@ -144,9 +144,7 @@ void setup() {
   initButtons();
   backlightInit();
   persistInit();
-  if (persistGetActiveChar()[0] != '\0') {
-    manifestSetActive(persistGetActiveChar());  // best-effort
-  }
+  manifestLoadActiveFromPersist();
   xferInit();
   if (persistGet().deviceName[0] == '\0') {
     std::string def = std::string(DEVICE_NAME_PREFIX) + deviceSuffix();

@@ -8,6 +8,7 @@
 #ifdef ARDUINO
 #include <Seeed_Arduino_FS.h>
 #include <Seeed_SFUD.h>
+#include "persist.h"
 #endif
 
 namespace {
@@ -51,7 +52,8 @@ namespace {
     return true;
   }
 
-  bool hasActive = false;
+  // The active manifest is "present" iff name is non-empty. manifestParseJson
+  // rejects empty names, so this sentinel is reliable.
   CharManifest active;
 
   struct StateName { const char* key; ManifestStateIdx idx; };
@@ -98,6 +100,34 @@ namespace {
       // Unknown types ignored silently.
     }
   }
+
+  // Fills `out` from an already-parsed JSON root. Shared between the
+  // string-input and File-stream-input entry points so neither has to
+  // duplicate the field-extraction logic.
+  bool fillManifest(JsonObjectConst root, CharManifest& out, std::string& err) {
+    err.clear();
+    std::memset(&out, 0, sizeof(out));
+
+    const char* name = root["name"] | "";
+    if (name[0] == '\0') { err = "name missing"; return false; }
+    std::strncpy(out.name, name, MANIFEST_NAME_MAX);
+    out.name[MANIFEST_NAME_MAX] = '\0';
+
+    if (!root.containsKey("colors") || !root["colors"].is<JsonObjectConst>()) {
+      err = "colors missing"; return false;
+    }
+    JsonObjectConst colors = root["colors"].as<JsonObjectConst>();
+    if (!readRequiredColor(colors, "body",    out.colorBody,    err)) return false;
+    if (!readRequiredColor(colors, "bg",      out.colorBg,      err)) return false;
+    if (!readRequiredColor(colors, "text",    out.colorText,    err)) return false;
+    if (!readRequiredColor(colors, "textDim", out.colorTextDim, err)) return false;
+    if (!readRequiredColor(colors, "ink",     out.colorInk,     err)) return false;
+
+    if (root.containsKey("states") && root["states"].is<JsonObjectConst>()) {
+      parseStates(root["states"].as<JsonObjectConst>(), out, err);
+    }
+    return true;
+  }
 }
 
 #ifndef ARDUINO
@@ -110,34 +140,10 @@ uint16_t _manifestHex24ToRgb565(const char* hex) {
 
 bool manifestParseJson(const char* json, size_t len,
                        CharManifest& out, std::string& err) {
-  err.clear();
-  std::memset(&out, 0, sizeof(out));
-
   DynamicJsonDocument doc(4096);
   DeserializationError de = deserializeJson(doc, json, len);
   if (de) { err = de.c_str(); return false; }
-
-  JsonObjectConst root = doc.as<JsonObjectConst>();
-
-  const char* name = root["name"] | "";
-  if (name[0] == '\0') { err = "name missing"; return false; }
-  std::strncpy(out.name, name, MANIFEST_NAME_MAX);
-  out.name[MANIFEST_NAME_MAX] = '\0';
-
-  if (!root.containsKey("colors") || !root["colors"].is<JsonObjectConst>()) {
-    err = "colors missing"; return false;
-  }
-  JsonObjectConst colors = root["colors"].as<JsonObjectConst>();
-  if (!readRequiredColor(colors, "body",    out.colorBody,    err)) return false;
-  if (!readRequiredColor(colors, "bg",      out.colorBg,      err)) return false;
-  if (!readRequiredColor(colors, "text",    out.colorText,    err)) return false;
-  if (!readRequiredColor(colors, "textDim", out.colorTextDim, err)) return false;
-  if (!readRequiredColor(colors, "ink",     out.colorInk,     err)) return false;
-
-  if (root.containsKey("states") && root["states"].is<JsonObjectConst>()) {
-    parseStates(root["states"].as<JsonObjectConst>(), out, err);
-  }
-  return true;
+  return fillManifest(doc.as<JsonObjectConst>(), out, err);
 }
 
 #ifdef ARDUINO
@@ -148,13 +154,11 @@ bool manifestParseFile(const char* path, CharManifest& out, std::string& err) {
   if (size == 0 || size > 8192) {
     f.close(); err = "size out of range"; return false;
   }
-  // Read into a heap buffer; stack is tight next to rpcBLE.
-  std::string buf;
-  buf.resize(size);
-  size_t n = f.read(reinterpret_cast<uint8_t*>(&buf[0]), size);
+  DynamicJsonDocument doc(4096);
+  DeserializationError de = deserializeJson(doc, f);
   f.close();
-  if (n != size) { err = "short read"; return false; }
-  return manifestParseJson(buf.data(), buf.size(), out, err);
+  if (de) { err = de.c_str(); return false; }
+  return fillManifest(doc.as<JsonObjectConst>(), out, err);
 }
 
 bool manifestSetActive(const char* charName) {
@@ -165,20 +169,23 @@ bool manifestSetActive(const char* charName) {
   std::string err;
   if (!manifestParseFile(path, staging, err)) return false;
   active = staging;
-  hasActive = true;
   return true;
+}
+
+void manifestLoadActiveFromPersist() {
+  const char* name = persistGetActiveChar();
+  if (name && name[0] != '\0') manifestSetActive(name);
 }
 #else
 bool manifestSetActive(const char*) { return false; }
 #endif
 
 const CharManifest* manifestActive() {
-  return hasActive ? &active : nullptr;
+  return active.name[0] != '\0' ? &active : nullptr;
 }
 
 #ifndef ARDUINO
 void _manifestResetForTest() {
-  hasActive = false;
   std::memset(&active, 0, sizeof(active));
 }
 bool _manifestSetActiveFromJson(const char* json, size_t len) {
@@ -186,7 +193,6 @@ bool _manifestSetActiveFromJson(const char* json, size_t len) {
   std::string err;
   if (!manifestParseJson(json, len, staging, err)) return false;
   active = staging;
-  hasActive = true;
   return true;
 }
 #endif
