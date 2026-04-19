@@ -4,7 +4,13 @@
 #include <cstring>
 
 #ifdef ARDUINO
-// Device-side file I/O lands in Task 8.
+#include <Arduino.h>
+#include <Seeed_Arduino_FS.h>
+#include <Seeed_SFUD.h>
+static constexpr const char* PERSIST_DIR  = "/wioclaude";
+static constexpr const char* PERSIST_PATH = "/wioclaude/stats.bin";
+static int consecutiveWriteFailures = 0;
+static constexpr int CONSECUTIVE_WRITE_FAILURE_LIMIT = 5;
 #else
 #include <vector>
 namespace {
@@ -33,8 +39,13 @@ namespace {
 
   bool readStore(uint8_t* buf, size_t size) {
 #ifdef ARDUINO
-    (void)buf; (void)size;
-    return false;
+    if (!fsReady) return false;
+    File f = SFUD.open(PERSIST_PATH, FILE_READ);
+    if (!f) return false;
+    if ((size_t)f.size() != size) { f.close(); return false; }
+    size_t n = f.read(buf, size);
+    f.close();
+    return n == size;
 #else
     if (fakeFile.size() != size) return false;
     std::memcpy(buf, fakeFile.data(), size);
@@ -44,8 +55,17 @@ namespace {
 
   bool writeStore(const uint8_t* buf, size_t size) {
 #ifdef ARDUINO
-    (void)buf; (void)size;
-    return false;
+    if (!fsReady) return false;
+    if (consecutiveWriteFailures >= CONSECUTIVE_WRITE_FAILURE_LIMIT) return false;
+    if (!SFUD.exists(PERSIST_DIR)) SFUD.mkdir(PERSIST_DIR);
+    File f = SFUD.open(PERSIST_PATH, FILE_WRITE);
+    if (!f) { ++consecutiveWriteFailures; return false; }
+    f.seek(0);
+    size_t n = f.write(buf, size);
+    f.close();
+    if (n != size) { ++consecutiveWriteFailures; return false; }
+    consecutiveWriteFailures = 0;
+    return true;
 #else
     fakeFile.assign(buf, buf + size);
     ++writeCount;
@@ -62,7 +82,16 @@ namespace {
 
 void persistInit() {
   setDefaults();
+  fsReady = false;
+#ifdef ARDUINO
+  if (!SFUD.begin(104000000UL)) {
+    Serial.println("[persist] SFUD mount failed; using defaults");
+  } else {
+    fsReady = true;
+  }
+#else
   fsReady = true;
+#endif
   PersistData tmp;
   if (readStore(reinterpret_cast<uint8_t*>(&tmp), sizeof(tmp))) {
     if (tmp.magic == PERSIST_MAGIC && tmp.version == PERSIST_VERSION) {
