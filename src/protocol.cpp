@@ -1,4 +1,5 @@
 #include "protocol.h"
+#include "config.h"
 #include <ArduinoJson.h>
 
 ParsedMessage parseLine(const std::string& line) {
@@ -17,6 +18,18 @@ ParsedMessage parseLine(const std::string& line) {
     m.heartbeat.waiting = doc["waiting"] | 0;
     const char* msg = doc["msg"] | "";
     m.heartbeat.msg = msg;
+    if (doc.containsKey("entries") && doc["entries"].is<JsonArray>()) {
+      JsonArray arr = doc["entries"].as<JsonArray>();
+      size_t n = 0;
+      for (JsonVariant v : arr) {
+        if (n >= ENTRIES_MAX) break;
+        const char* s = v | "";
+        std::string entry(s);
+        if (entry.size() > ENTRY_CHARS_MAX) entry.resize(ENTRY_CHARS_MAX);
+        m.heartbeat.entries.push_back(std::move(entry));
+        ++n;
+      }
+    }
     if (doc.containsKey("prompt") && !doc["prompt"].isNull()) {
       m.heartbeat.hasPrompt = true;
       m.heartbeat.prompt.id   = doc["prompt"]["id"]   | "";

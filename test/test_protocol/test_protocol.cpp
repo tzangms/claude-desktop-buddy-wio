@@ -107,6 +107,41 @@ void test_parse_name_cmd_empty() {
   TEST_ASSERT_EQUAL_STRING("", m.nameValue.c_str());
 }
 
+void test_parse_heartbeat_entries() {
+  std::string line =
+      R"({"total":1,"running":1,"waiting":0,"msg":"busy",)"
+      R"("entries":["10:42 a","10:41 b","10:40 c"]})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(3u, m.heartbeat.entries.size());
+  TEST_ASSERT_EQUAL_STRING("10:42 a", m.heartbeat.entries[0].c_str());
+  TEST_ASSERT_EQUAL_STRING("10:40 c", m.heartbeat.entries[2].c_str());
+}
+
+void test_parse_heartbeat_entries_truncate_count() {
+  // 7 entries, ENTRIES_MAX=5 should keep first 5.
+  std::string line =
+      R"({"total":1,"running":0,"waiting":0,)"
+      R"("entries":["a","b","c","d","e","f","g"]})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(5u, m.heartbeat.entries.size());
+  TEST_ASSERT_EQUAL_STRING("e", m.heartbeat.entries[4].c_str());
+}
+
+void test_parse_heartbeat_entries_truncate_chars() {
+  std::string big(200, 'x');  // 200 chars
+  std::string line =
+      R"({"total":1,"running":0,"waiting":0,"entries":[")" + big + R"("]})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(1u, m.heartbeat.entries.size());
+  TEST_ASSERT_EQUAL(128u, m.heartbeat.entries[0].size());
+}
+
+void test_parse_heartbeat_no_entries_key() {
+  std::string line = R"({"total":1,"running":0,"waiting":0})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_TRUE(m.heartbeat.entries.empty());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_parse_heartbeat_basic);
@@ -122,5 +157,9 @@ int main(int, char**) {
   RUN_TEST(test_parse_heartbeat_missing_optional_fields);
   RUN_TEST(test_parse_name_cmd_normal);
   RUN_TEST(test_parse_name_cmd_empty);
+  RUN_TEST(test_parse_heartbeat_entries);
+  RUN_TEST(test_parse_heartbeat_entries_truncate_count);
+  RUN_TEST(test_parse_heartbeat_entries_truncate_chars);
+  RUN_TEST(test_parse_heartbeat_no_entries_key);
   return UNITY_END();
 }

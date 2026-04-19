@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 enum class Mode {
   BleInit,
@@ -25,6 +26,7 @@ struct HeartbeatData {
   int running = 0;
   int waiting = 0;
   std::string msg;
+  std::vector<std::string> entries;
   bool hasPrompt = false;
   PromptData prompt;
 };
