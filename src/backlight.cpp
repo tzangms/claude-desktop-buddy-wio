@@ -38,8 +38,12 @@ void backlightInit() {
   lastActivityMs = 0;
 }
 
-void backlightWake(uint32_t /*nowMs*/) {
-  // TODO(Task 4): implement wake-on-activity logic.
+void backlightWake(uint32_t nowMs) {
+  lastActivityMs = nowMs;
+  if (!awake) {
+    writePin(true);
+    awake = true;
+  }
 }
 
 void backlightTick(const AppState& s, uint32_t nowMs) {
