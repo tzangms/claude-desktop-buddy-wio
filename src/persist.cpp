@@ -29,6 +29,7 @@ namespace {
   uint32_t lastFlushMs = 0;
   int64_t lastFlushedLifetimeTokens = 0;
   int64_t prevSessionTokens = 0;
+  bool sessionBaselined = false;
   bool fsReady = false;
 
   void setDefaults() {
@@ -81,7 +82,6 @@ namespace {
 }
 
 void persistInit() {
-  setDefaults();
   fsReady = false;
 #ifdef ARDUINO
   if (!SFUD.begin(104000000UL)) {
@@ -92,13 +92,14 @@ void persistInit() {
 #else
   fsReady = true;
 #endif
-  PersistData tmp;
-  if (readStore(reinterpret_cast<uint8_t*>(&tmp), sizeof(tmp))) {
-    if (tmp.magic == PERSIST_MAGIC && tmp.version == PERSIST_VERSION) {
-      data = tmp;
-    }
+  if (!fsReady ||
+      !readStore(reinterpret_cast<uint8_t*>(&data), sizeof(data)) ||
+      data.magic != PERSIST_MAGIC ||
+      data.version != PERSIST_VERSION) {
+    setDefaults();
   }
   prevSessionTokens = 0;
+  sessionBaselined = false;
   lastFlushedLifetimeTokens = data.deviceLifetimeTokens;
   lastFlushMs = 0;
   dirty = false;
@@ -125,11 +126,38 @@ void persistTick(uint32_t nowMs) {
 }
 
 void persistUpdateFromHeartbeat(int64_t sessionTokens, int64_t tokensToday) {
-  if (sessionTokens >= prevSessionTokens) {
+  // First heartbeat after boot only establishes the baseline — we don't know
+  // how much of sessionTokens was already folded into deviceLifetimeTokens
+  // before the previous shutdown, so treating the first delta as zero
+  // prevents double-counting across reboots.
+  if (sessionBaselined && sessionTokens >= prevSessionTokens) {
     int64_t delta = sessionTokens - prevSessionTokens;
     data.deviceLifetimeTokens += delta;
   }
   prevSessionTokens = sessionTokens;
+  sessionBaselined = true;
   data.lvl = static_cast<int32_t>(data.deviceLifetimeTokens / TOKENS_PER_LEVEL);
   data.tokens_today = tokensToday;
+}
+
+void persistSetDeviceName(const char* name) {
+  std::strncpy(data.deviceName, name, sizeof(data.deviceName) - 1);
+  data.deviceName[sizeof(data.deviceName) - 1] = '\0';
+  persistCommit(true);
+}
+
+void persistSetOwnerName(const char* name) {
+  std::strncpy(data.ownerName, name, sizeof(data.ownerName) - 1);
+  data.ownerName[sizeof(data.ownerName) - 1] = '\0';
+  persistCommit(true);
+}
+
+void persistIncAppr() {
+  data.appr++;
+  persistCommit(true);
+}
+
+void persistIncDeny() {
+  data.deny++;
+  persistCommit(true);
 }

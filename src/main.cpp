@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <cstring>
 #include "config.h"
 #include "state.h"
 #include "protocol.h"
@@ -72,9 +71,7 @@ static void onLine(const std::string& line) {
     }
     case MessageKind::Owner:
       if (applyOwner(appState, m.ownerName)) pendingRender = true;
-      std::strncpy(persistMut().ownerName, m.ownerName.c_str(), 32);
-      persistMut().ownerName[32] = '\0';
-      persistCommit(true);
+      persistSetOwnerName(m.ownerName.c_str());
       sendLine(formatAck("owner", true));
       break;
     case MessageKind::Time:
@@ -88,11 +85,7 @@ static void onLine(const std::string& line) {
     case MessageKind::NameCmd: {
       std::string err;
       bool ok = applyNameCmd(appState, m.nameValue, err);
-      if (ok) {
-        std::strncpy(persistMut().deviceName, appState.deviceName.c_str(), 32);
-        persistMut().deviceName[32] = '\0';
-        persistCommit(true);
-      }
+      if (ok) persistSetDeviceName(appState.deviceName.c_str());
       sendLine(formatAck("name", ok, err));
       break;
     }
@@ -116,9 +109,7 @@ void setup() {
   persistInit();
   if (persistGet().deviceName[0] == '\0') {
     std::string def = std::string(DEVICE_NAME_PREFIX) + deviceSuffix();
-    std::strncpy(persistMut().deviceName, def.c_str(), 32);
-    persistMut().deviceName[32] = '\0';
-    persistCommit(true);
+    persistSetDeviceName(def.c_str());
   }
   renderBoot("BLE init...");
 
@@ -169,9 +160,8 @@ void loop() {
       PermissionDecision d;
       std::string id;
       if (applyButton(appState, btn, now, d, id)) {
-        if (btn == 'A') persistMut().appr++;
-        else            persistMut().deny++;
-        persistCommit(true);
+        if (btn == 'A') persistIncAppr();
+        else            persistIncDeny();
         std::string line = formatPermission(id, d);
         sendLine(line);
         lastButtonSendMs = now;

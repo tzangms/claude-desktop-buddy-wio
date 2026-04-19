@@ -18,7 +18,7 @@ struct __attribute__((packed)) PersistData {
 };
 
 static_assert(sizeof(PersistData) == 110,
-              "PersistData layout surprise; check __attribute__((packed))");
+              "PersistData file format: bump PERSIST_VERSION if this changes");
 
 void persistInit();
 const PersistData& persistGet();
@@ -26,6 +26,12 @@ PersistData& persistMut();
 void persistCommit(bool immediate);
 void persistTick(uint32_t nowMs);
 void persistUpdateFromHeartbeat(int64_t sessionTokens, int64_t tokensToday);
+
+// Convenience helpers: mutate + persistCommit(true) in one call.
+void persistSetDeviceName(const char* name);
+void persistSetOwnerName(const char* name);
+void persistIncAppr();
+void persistIncDeny();
 
 #ifndef ARDUINO
 const uint8_t* _persistFakeFile();

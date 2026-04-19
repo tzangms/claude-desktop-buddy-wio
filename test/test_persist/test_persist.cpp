@@ -110,15 +110,17 @@ void test_tick_flushes_after_token_delta_threshold() {
   int before = _persistWriteCount();
   persistMut().deviceLifetimeTokens = PERSIST_DEBOUNCE_TOKENS + 1;
   persistCommit(false);
-  persistTick(1000);  // well under PERSIST_DEBOUNCE_MS
+  persistTick(1000);
   TEST_ASSERT_EQUAL(before + 1, _persistWriteCount());
 }
 
-void test_heartbeat_first_call_accumulates_session_tokens() {
+void test_heartbeat_first_call_sets_baseline_only() {
   _persistResetFakeFile();
   persistInit();
+  // First heartbeat after boot establishes the baseline; lifetime stays 0
+  // so we don't double-count tokens already folded in before shutdown.
   persistUpdateFromHeartbeat(15000, 1234);
-  TEST_ASSERT_EQUAL_INT64(15000, persistGet().deviceLifetimeTokens);
+  TEST_ASSERT_EQUAL_INT64(0, persistGet().deviceLifetimeTokens);
   TEST_ASSERT_EQUAL_INT64(1234, persistGet().tokens_today);
   TEST_ASSERT_EQUAL_INT32(0, persistGet().lvl);
 }
@@ -126,20 +128,22 @@ void test_heartbeat_first_call_accumulates_session_tokens() {
 void test_heartbeat_level_increments_every_50k_tokens() {
   _persistResetFakeFile();
   persistInit();
-  persistUpdateFromHeartbeat(50000, 0);
+  persistUpdateFromHeartbeat(0, 0);       // baseline
+  persistUpdateFromHeartbeat(50000, 0);   // +50000 → lvl 1
   TEST_ASSERT_EQUAL_INT32(1, persistGet().lvl);
-  persistUpdateFromHeartbeat(120000, 0);
+  persistUpdateFromHeartbeat(120000, 0);  // +70000 → lifetime 120000 → lvl 2
   TEST_ASSERT_EQUAL_INT32(2, persistGet().lvl);
 }
 
 void test_heartbeat_desktop_restart_no_negative_delta() {
   _persistResetFakeFile();
   persistInit();
-  persistUpdateFromHeartbeat(10000, 0);
+  persistUpdateFromHeartbeat(0, 0);       // baseline
+  persistUpdateFromHeartbeat(10000, 0);   // lifetime 10000
   int64_t lifetimeBefore = persistGet().deviceLifetimeTokens;
-  persistUpdateFromHeartbeat(500, 0);
+  persistUpdateFromHeartbeat(500, 0);     // desktop restart: ignored, resyncs baseline
   TEST_ASSERT_EQUAL_INT64(lifetimeBefore, persistGet().deviceLifetimeTokens);
-  persistUpdateFromHeartbeat(2500, 0);
+  persistUpdateFromHeartbeat(2500, 0);    // delta 2000
   TEST_ASSERT_EQUAL_INT64(lifetimeBefore + 2000, persistGet().deviceLifetimeTokens);
 }
 
@@ -165,7 +169,7 @@ int main(int, char**) {
   RUN_TEST(test_tick_flushes_after_time_threshold);
   RUN_TEST(test_tick_skips_when_clean);
   RUN_TEST(test_tick_flushes_after_token_delta_threshold);
-  RUN_TEST(test_heartbeat_first_call_accumulates_session_tokens);
+  RUN_TEST(test_heartbeat_first_call_sets_baseline_only);
   RUN_TEST(test_heartbeat_level_increments_every_50k_tokens);
   RUN_TEST(test_heartbeat_desktop_restart_no_negative_delta);
   RUN_TEST(test_heartbeat_updates_tokens_today);
