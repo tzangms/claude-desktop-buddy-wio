@@ -100,11 +100,13 @@ namespace {
   }
 }
 
+#ifndef ARDUINO
 uint16_t _manifestHex24ToRgb565(const char* hex) {
   uint8_t r, g, b;
   if (!parseHex24(hex, r, g, b)) return 0;
   return rgb565(r, g, b);
 }
+#endif
 
 bool manifestParseJson(const char* json, size_t len,
                        CharManifest& out, std::string& err) {

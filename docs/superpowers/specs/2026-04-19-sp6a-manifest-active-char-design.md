@@ -210,7 +210,7 @@ SP6b renderers will treat that as "no active char, use ASCII".
 | State value array longer than 16 variants | truncate, continue, set warning in err    |
 | State name not in firmware enum           | ignore that entry, continue                 |
 | Upload replaces an already-active char    | new one becomes active (newest wins)        |
-| Manifest parse succeeds, flash write of activeCharName fails | `ack ok:false`, active cache reverted |
+| Manifest parse succeeds, flash write of activeCharName fails (async) | silent; `persistTick` retries on next call. Active RAM cache is unaffected. |
 
 Strict rejection (rows 1–3) is intentional — if the bytes on flash aren't
 a coherent character, the user's intent wasn't met and reporting failure
