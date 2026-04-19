@@ -57,8 +57,8 @@ void test_ack_with_running_is_busy() {
 
 void test_face_rows_non_null_all_frames() {
   const PetState states[] = {
-    PetState::Sleep, PetState::Idle, PetState::Busy,
-    PetState::Attention, PetState::Celebrate, PetState::Heart,
+    PetState::Sleep, PetState::Idle, PetState::Busy, PetState::Attention,
+    PetState::Celebrate, PetState::Heart, PetState::Dizzy, PetState::Nap,
   };
   for (PetState s : states) {
     for (size_t f = 0; f < PET_FRAMES_PER_STATE; ++f) {
@@ -126,6 +126,45 @@ void test_heart_overrides_idle() {
                     static_cast<int>(petComputeState(s, now + PET_HEART_MS + 1)));
 }
 
+void test_dizzy_overrides_idle_and_expires() {
+  AppState s;
+  s.mode = Mode::Idle;
+  uint32_t now = 400000;
+  petTriggerDizzy(now);
+  TEST_ASSERT_EQUAL(static_cast<int>(PetState::Dizzy),
+                    static_cast<int>(petComputeState(s, now + 100)));
+  TEST_ASSERT_EQUAL(static_cast<int>(PetState::Idle),
+                    static_cast<int>(petComputeState(s, now + PET_DIZZY_MS + 1)));
+}
+
+void test_nap_latched_until_exit() {
+  AppState s;
+  s.mode = Mode::Idle;
+  petExitNap();  // ensure clean
+  TEST_ASSERT_FALSE(petIsNapping());
+  petEnterNap();
+  TEST_ASSERT_TRUE(petIsNapping());
+  // Nap persists indefinitely — far-future tick still reports Nap.
+  TEST_ASSERT_EQUAL(static_cast<int>(PetState::Nap),
+                    static_cast<int>(petComputeState(s, FAR_FUTURE)));
+  petExitNap();
+  TEST_ASSERT_FALSE(petIsNapping());
+  TEST_ASSERT_EQUAL(static_cast<int>(PetState::Idle),
+                    static_cast<int>(petComputeState(s, FAR_FUTURE)));
+}
+
+void test_celebrate_outranks_dizzy_and_nap() {
+  AppState s;
+  s.mode = Mode::Idle;
+  uint32_t now = 500000;
+  petEnterNap();
+  petTriggerDizzy(now);
+  petTriggerCelebrate(now);
+  TEST_ASSERT_EQUAL(static_cast<int>(PetState::Celebrate),
+                    static_cast<int>(petComputeState(s, now + 100)));
+  petExitNap();
+}
+
 void test_celebrate_outranks_heart() {
   AppState s;
   s.mode = Mode::Idle;
@@ -151,6 +190,9 @@ int main(int, char**) {
   RUN_TEST(test_reset_snaps_to_zero);
   RUN_TEST(test_celebrate_overrides_idle);
   RUN_TEST(test_heart_overrides_idle);
+  RUN_TEST(test_dizzy_overrides_idle_and_expires);
+  RUN_TEST(test_nap_latched_until_exit);
+  RUN_TEST(test_celebrate_outranks_dizzy_and_nap);
   RUN_TEST(test_celebrate_outranks_heart);
   return UNITY_END();
 }
