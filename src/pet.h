@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 struct AppState;
 
 enum class PetState {
@@ -9,7 +11,9 @@ enum class PetState {
   Attention,
 };
 
+static constexpr size_t PET_FACE_LINES = 4;
+
 PetState petComputeState(const AppState& s);
 
-// Returns a multi-line ASCII face; lines separated by '\n'. 4 lines, up to 8 chars each.
-const char* petFace(PetState state);
+// Returns a pointer to PET_FACE_LINES const char* rows, each up to 8 chars.
+const char* const* petFace(PetState state);

@@ -70,6 +70,15 @@ void renderConnected() {
 }
 
 void renderIdle(const AppState& s, bool fullRedraw) {
+  // Per-field cache so steady-state heartbeats skip redundant SPI writes.
+  static int32_t lastLvl = INT32_MIN;
+  static int64_t lastTokens = INT64_MIN;
+  static int lastTotal = INT32_MIN, lastRunning = INT32_MIN, lastWaiting = INT32_MIN;
+  static std::string lastMsg;
+  static std::vector<std::string> lastEntries;
+  static PetState lastPet = (PetState)-1;
+  static std::string lastOwner;
+
   if (fullRedraw) {
     clearAll();
     drawHeader("Claude Buddy", COLOR_BG, COLOR_FG);
@@ -83,89 +92,100 @@ void renderIdle(const AppState& s, bool fullRedraw) {
     tft.setCursor(28, 66);   tft.print("Total");
     tft.setCursor(130, 66);  tft.print("Running");
     tft.setCursor(240, 66);  tft.print("Waiting");
+    // Invalidate caches so every block repaints on the fresh canvas.
+    lastLvl = INT32_MIN; lastTokens = INT64_MIN;
+    lastTotal = INT32_MIN; lastRunning = INT32_MIN; lastWaiting = INT32_MIN;
+    lastMsg.clear(); lastEntries.clear();
+    lastPet = (PetState)-1; lastOwner.clear();
   }
 
-  // Level + tokens row
-  tft.fillRect(8, 46, 60, 14, COLOR_BG);
-  tft.setTextColor(COLOR_FG, COLOR_BG);
-  tft.setTextSize(2);
-  char lvlBuf[8];
-  snprintf(lvlBuf, sizeof(lvlBuf), "L%d", persistGet().lvl);
-  tft.setCursor(8, 46);
-  tft.print(lvlBuf);
-
-  tft.fillRect(SCREEN_W - 120, 46, 112, 14, COLOR_BG);
-  tft.setCursor(SCREEN_W - 120, 46);
-  char tokBuf[16];
-  int64_t t = s.hb.tokens_today;
-  if (t < 1000) {
-    snprintf(tokBuf, sizeof(tokBuf), "%d t", (int)t);
-  } else if (t < 100000) {
-    snprintf(tokBuf, sizeof(tokBuf), "%.1f kt", (double)t / 1000.0);
-  } else {
-    snprintf(tokBuf, sizeof(tokBuf), "%d kt", (int)(t / 1000));
+  int32_t lvl = persistGet().lvl;
+  if (lvl != lastLvl) {
+    tft.fillRect(8, 46, 60, 14, COLOR_BG);
+    tft.setTextColor(COLOR_FG, COLOR_BG);
+    tft.setTextSize(2);
+    char buf[8];
+    snprintf(buf, sizeof(buf), "L%d", lvl);
+    tft.setCursor(8, 46);
+    tft.print(buf);
+    lastLvl = lvl;
   }
-  tft.print(tokBuf);
 
-  // Big numbers — size 5 ~30px per char; 90px per cell.
-  tft.setTextColor(COLOR_FG, COLOR_BG);
-  tft.setTextSize(5);
+  int64_t tokens = s.hb.tokens_today;
+  if (tokens != lastTokens) {
+    tft.fillRect(SCREEN_W - 120, 46, 112, 14, COLOR_BG);
+    tft.setTextColor(COLOR_FG, COLOR_BG);
+    tft.setTextSize(2);
+    tft.setCursor(SCREEN_W - 120, 46);
+    char buf[16];
+    if (tokens < 1000) {
+      snprintf(buf, sizeof(buf), "%d t", (int)tokens);
+    } else if (tokens < 100000) {
+      snprintf(buf, sizeof(buf), "%.1f kt", (double)tokens / 1000.0);
+    } else {
+      snprintf(buf, sizeof(buf), "%d kt", (int)(tokens / 1000));
+    }
+    tft.print(buf);
+    lastTokens = tokens;
+  }
+
+  // Size 5 ~30px per char; 90px per cell.
   auto drawNum = [](int x, int n) {
     tft.fillRect(x, 80, 90, 40, COLOR_BG);
+    tft.setTextColor(COLOR_FG, COLOR_BG);
+    tft.setTextSize(5);
     char buf[8]; snprintf(buf, sizeof(buf), "%d", n);
     tft.setCursor(x, 82); tft.print(buf);
   };
-  drawNum(38,  s.hb.total);
-  drawNum(148, s.hb.running);
-  drawNum(258, s.hb.waiting);
+  if (s.hb.total   != lastTotal)   { drawNum(38,  s.hb.total);   lastTotal   = s.hb.total; }
+  if (s.hb.running != lastRunning) { drawNum(148, s.hb.running); lastRunning = s.hb.running; }
+  if (s.hb.waiting != lastWaiting) { drawNum(258, s.hb.waiting); lastWaiting = s.hb.waiting; }
 
-  // msg line
-  tft.fillRect(0, 125, SCREEN_W, 14, COLOR_BG);
-  tft.setTextColor(COLOR_FG, COLOR_BG);
-  tft.setTextSize(1);
-  tft.setCursor(8, 128);
-  tft.print(s.hb.msg.c_str());
-
-  // Transcript (up to 2 lines — shrunk from 3 to make room for pet)
-  tft.fillRect(0, 145, SCREEN_W, 40, COLOR_BG);
-  tft.setTextColor(COLOR_DIM, COLOR_BG);
-  tft.setTextSize(1);
-  size_t n = s.hb.entries.size() < 2 ? s.hb.entries.size() : 2;
-  for (size_t i = 0; i < n; ++i) {
-    tft.setCursor(8, 148 + (int)i * 18);
-    tft.print(s.hb.entries[i].c_str());
+  if (s.hb.msg != lastMsg) {
+    tft.fillRect(0, 125, SCREEN_W, 14, COLOR_BG);
+    tft.setTextColor(COLOR_FG, COLOR_BG);
+    tft.setTextSize(1);
+    tft.setCursor(8, 128);
+    tft.print(s.hb.msg.c_str());
+    lastMsg = s.hb.msg;
   }
 
-  // Pet face — centered, above footer
+  // Transcript shrunk from 3 to 2 lines to make room for the pet.
+  if (s.hb.entries != lastEntries) {
+    tft.fillRect(0, 145, SCREEN_W, 40, COLOR_BG);
+    tft.setTextColor(COLOR_DIM, COLOR_BG);
+    tft.setTextSize(1);
+    size_t n = s.hb.entries.size() < 2 ? s.hb.entries.size() : 2;
+    for (size_t i = 0; i < n; ++i) {
+      tft.setCursor(8, 148 + (int)i * 18);
+      tft.print(s.hb.entries[i].c_str());
+    }
+    lastEntries = s.hb.entries;
+  }
+
   PetState st = petComputeState(s);
-  uint16_t petColour = (st == PetState::Attention) ? COLOR_ALERT_BG : COLOR_OK;
-  tft.fillRect(120, 188, 80, 32, COLOR_BG);
-  tft.setTextColor(petColour, COLOR_BG);
-  tft.setTextSize(1);
-  const char* face = petFace(st);
-  const char* line = face;
-  int row = 0;
-  while (line && *line) {
-    const char* nl = strchr(line, '\n');
-    size_t len = nl ? (size_t)(nl - line) : strlen(line);
-    char buf[12];
-    size_t copy = len < sizeof(buf) - 1 ? len : sizeof(buf) - 1;
-    memcpy(buf, line, copy);
-    buf[copy] = '\0';
-    tft.setCursor(130, 188 + row * 8);
-    tft.print(buf);
-    if (!nl) break;
-    line = nl + 1;
-    ++row;
+  if (st != lastPet) {
+    uint16_t petColour = (st == PetState::Attention) ? COLOR_ALERT_FG : COLOR_OK;
+    tft.fillRect(120, 188, 80, 32, COLOR_BG);
+    tft.setTextColor(petColour, COLOR_BG);
+    tft.setTextSize(1);
+    const char* const* rows = petFace(st);
+    for (size_t i = 0; i < PET_FACE_LINES; ++i) {
+      tft.setCursor(130, 188 + (int)i * 8);
+      tft.print(rows[i]);
+    }
+    lastPet = st;
   }
 
-  // Footer: owner greeting
-  if (!s.ownerName.empty()) {
-    char buf[64];
-    snprintf(buf, sizeof(buf), "Hi, %s", s.ownerName.c_str());
-    drawFooter(buf);
-  } else {
-    drawFooter("");
+  if (s.ownerName != lastOwner) {
+    if (!s.ownerName.empty()) {
+      char buf[64];
+      snprintf(buf, sizeof(buf), "Hi, %s", s.ownerName.c_str());
+      drawFooter(buf);
+    } else {
+      drawFooter("");
+    }
+    lastOwner = s.ownerName;
   }
 }
 

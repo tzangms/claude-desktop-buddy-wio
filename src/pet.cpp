@@ -2,10 +2,30 @@
 #include "state.h"
 
 namespace {
-  const char* FACE_SLEEP     = " ,---.\n (- -)\n | z |\n '---'";
-  const char* FACE_IDLE      = " ,---.\n (o o)\n | _ |\n '---'";
-  const char* FACE_BUSY      = " ,---.\n (> <)\n | ~ |\n '---'";
-  const char* FACE_ATTENTION = " ,---.\n (O O)\n | ! |\n '---'";
+  const char* const FACE_SLEEP[PET_FACE_LINES] = {
+    " ,---.",
+    " (- -)",
+    " | z |",
+    " '---'",
+  };
+  const char* const FACE_IDLE[PET_FACE_LINES] = {
+    " ,---.",
+    " (o o)",
+    " | _ |",
+    " '---'",
+  };
+  const char* const FACE_BUSY[PET_FACE_LINES] = {
+    " ,---.",
+    " (> <)",
+    " | ~ |",
+    " '---'",
+  };
+  const char* const FACE_ATTENTION[PET_FACE_LINES] = {
+    " ,---.",
+    " (O O)",
+    " | ! |",
+    " '---'",
+  };
 }
 
 PetState petComputeState(const AppState& s) {
@@ -22,7 +42,7 @@ PetState petComputeState(const AppState& s) {
   }
 }
 
-const char* petFace(PetState state) {
+const char* const* petFace(PetState state) {
   switch (state) {
     case PetState::Sleep:     return FACE_SLEEP;
     case PetState::Idle:      return FACE_IDLE;

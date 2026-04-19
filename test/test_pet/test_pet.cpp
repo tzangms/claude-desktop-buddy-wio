@@ -48,19 +48,16 @@ void test_ack_with_running_is_busy() {
                     static_cast<int>(petComputeState(s)));
 }
 
-void test_face_strings_non_null_and_have_newlines() {
-  const char* faces[] = {
-    petFace(PetState::Sleep),
-    petFace(PetState::Idle),
-    petFace(PetState::Busy),
-    petFace(PetState::Attention),
+void test_face_rows_non_null() {
+  const PetState states[] = {
+    PetState::Sleep, PetState::Idle, PetState::Busy, PetState::Attention,
   };
-  for (const char* f : faces) {
-    TEST_ASSERT_NOT_NULL(f);
-    // Expect 3 newlines (4 lines)
-    int nl = 0;
-    for (const char* p = f; *p; ++p) if (*p == '\n') ++nl;
-    TEST_ASSERT_EQUAL(3, nl);
+  for (PetState s : states) {
+    const char* const* rows = petFace(s);
+    TEST_ASSERT_NOT_NULL(rows);
+    for (size_t i = 0; i < PET_FACE_LINES; ++i) {
+      TEST_ASSERT_NOT_NULL(rows[i]);
+    }
   }
 }
 
@@ -72,6 +69,6 @@ int main(int, char**) {
   RUN_TEST(test_busy_when_running_gt_zero);
   RUN_TEST(test_attention_when_prompt_mode);
   RUN_TEST(test_ack_with_running_is_busy);
-  RUN_TEST(test_face_strings_non_null_and_have_newlines);
+  RUN_TEST(test_face_rows_non_null);
   return UNITY_END();
 }
