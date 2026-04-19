@@ -77,6 +77,20 @@ void test_parse_heartbeat_missing_optional_fields() {
   TEST_ASSERT_FALSE(m.heartbeat.hasPrompt);
 }
 
+void test_parse_status_cmd() {
+  std::string line = R"({"cmd":"status"})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(static_cast<int>(MessageKind::StatusCmd),
+                    static_cast<int>(m.kind));
+}
+
+void test_parse_unpair_cmd() {
+  std::string line = R"({"cmd":"unpair"})";
+  ParsedMessage m = parseLine(line);
+  TEST_ASSERT_EQUAL(static_cast<int>(MessageKind::UnpairCmd),
+                    static_cast<int>(m.kind));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_parse_heartbeat_basic);
@@ -84,6 +98,8 @@ int main(int, char**) {
   RUN_TEST(test_parse_owner);
   RUN_TEST(test_parse_time);
   RUN_TEST(test_parse_turn_event);
+  RUN_TEST(test_parse_status_cmd);
+  RUN_TEST(test_parse_unpair_cmd);
   RUN_TEST(test_parse_malformed_is_error);
   RUN_TEST(test_format_permission_approve);
   RUN_TEST(test_format_permission_deny);

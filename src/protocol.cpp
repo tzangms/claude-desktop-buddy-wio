@@ -37,6 +37,16 @@ ParsedMessage parseLine(const std::string& line) {
     return m;
   }
 
+  if (doc["cmd"] == "status") {
+    m.kind = MessageKind::StatusCmd;
+    return m;
+  }
+
+  if (doc["cmd"] == "unpair") {
+    m.kind = MessageKind::UnpairCmd;
+    return m;
+  }
+
   if (doc.containsKey("time") && doc["time"].is<JsonArray>()) {
     JsonArray a = doc["time"].as<JsonArray>();
     if (a.size() >= 2) {

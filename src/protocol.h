@@ -8,6 +8,9 @@ enum class MessageKind {
   Owner,
   Time,
   TurnEvent,
+  StatusCmd,
+  NameCmd,
+  UnpairCmd,
   Unknown,
   ParseError,
 };
