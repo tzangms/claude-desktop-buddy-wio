@@ -172,3 +172,20 @@ void persistFactoryReset() {
   setDefaults();
   persistCommit(true);
 }
+
+void persistSetActiveChar(const char* name) {
+  std::strncpy(data.activeCharName, name ? name : "",
+               sizeof(data.activeCharName) - 1);
+  data.activeCharName[sizeof(data.activeCharName) - 1] = '\0';
+  persistCommit(true);
+}
+
+const char* persistGetActiveChar() {
+  return data.activeCharName;
+}
+
+#ifndef ARDUINO
+void _persistSeedFakeFile(const uint8_t* bytes, size_t n) {
+  fakeFile.assign(bytes, bytes + n);
+}
+#endif

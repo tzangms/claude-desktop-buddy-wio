@@ -164,6 +164,39 @@ void test_heartbeat_updates_tokens_today() {
   TEST_ASSERT_EQUAL_INT64(0, persistGet().tokens_today);
 }
 
+void test_active_char_roundtrip() {
+  _persistResetFakeFile();
+  persistInit();
+  TEST_ASSERT_EQUAL_STRING("", persistGetActiveChar());
+
+  persistSetActiveChar("bufo");
+  persistTick(0);   // force flush of forceFlushNextTick
+  persistTick(PERSIST_DEBOUNCE_MS + 1);
+
+  // Re-init simulates a reboot.
+  persistInit();
+  TEST_ASSERT_EQUAL_STRING("bufo", persistGetActiveChar());
+}
+
+void test_active_char_default_empty_on_fresh_init() {
+  _persistResetFakeFile();
+  persistInit();
+  TEST_ASSERT_EQUAL_STRING("", persistGetActiveChar());
+}
+
+void test_v1_sized_blob_falls_to_defaults() {
+  // Simulate a stored blob from before activeCharName was added.
+  // The size-mismatch guard in readStore must reject it so setDefaults
+  // runs and we don't read garbage out of the new field.
+  _persistResetFakeFile();
+  uint8_t fake[32] = {0};   // small, clearly not sizeof(PersistData)
+  _persistSeedFakeFile(fake, sizeof(fake));
+  persistInit();
+  TEST_ASSERT_EQUAL_STRING("", persistGetActiveChar());
+  TEST_ASSERT_EQUAL_UINT32(PERSIST_MAGIC, persistGet().magic);
+  TEST_ASSERT_EQUAL_UINT32(PERSIST_VERSION, persistGet().version);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_init_empty_uses_defaults);
@@ -179,5 +212,8 @@ int main(int, char**) {
   RUN_TEST(test_heartbeat_level_increments_every_50k_tokens);
   RUN_TEST(test_heartbeat_desktop_restart_no_negative_delta);
   RUN_TEST(test_heartbeat_updates_tokens_today);
+  RUN_TEST(test_active_char_roundtrip);
+  RUN_TEST(test_active_char_default_empty_on_fresh_init);
+  RUN_TEST(test_v1_sized_blob_falls_to_defaults);
   return UNITY_END();
 }
