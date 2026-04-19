@@ -62,6 +62,31 @@ ParsedMessage parseLine(const std::string& line) {
     m.nameValue = doc["name"] | "";
     return m;
   }
+  if (!strcmp(cmd, "char_begin")) {
+    m.kind = MessageKind::CharBegin;
+    m.xferName  = doc["name"]  | "";
+    m.xferTotal = doc["total"] | (int64_t)0;
+    return m;
+  }
+  if (!strcmp(cmd, "file")) {
+    m.kind = MessageKind::FileBegin;
+    m.xferPath = doc["path"] | "";
+    m.xferSize = doc["size"] | (int64_t)0;
+    return m;
+  }
+  if (!strcmp(cmd, "chunk")) {
+    m.kind = MessageKind::Chunk;
+    m.xferChunk = doc["d"] | "";
+    return m;
+  }
+  if (!strcmp(cmd, "file_end")) {
+    m.kind = MessageKind::FileEnd;
+    return m;
+  }
+  if (!strcmp(cmd, "char_end")) {
+    m.kind = MessageKind::CharEnd;
+    return m;
+  }
 
   if (doc["time"].is<JsonArray>()) {
     JsonArray a = doc["time"].as<JsonArray>();
@@ -94,6 +119,19 @@ std::string formatAck(const std::string& cmd, bool ok,
   StaticJsonDocument<256> doc;
   doc["ack"] = cmd;
   doc["ok"] = ok;
+  if (!error.empty()) doc["error"] = error;
+  std::string out;
+  serializeJson(doc, out);
+  out += '\n';
+  return out;
+}
+
+std::string formatAckN(const std::string& cmd, bool ok, int64_t n,
+                       const std::string& error) {
+  StaticJsonDocument<256> doc;
+  doc["ack"] = cmd;
+  doc["ok"] = ok;
+  doc["n"] = n;
   if (!error.empty()) doc["error"] = error;
   std::string out;
   serializeJson(doc, out);
