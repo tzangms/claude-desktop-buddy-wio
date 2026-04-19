@@ -30,3 +30,8 @@ ParsedMessage parseLine(const std::string& line);
 // Build a permission-decision JSON line terminated with '\n'.
 std::string formatPermission(const std::string& promptId,
                              PermissionDecision decision);
+
+// Build a generic ack JSON line terminated with '\n'.
+// If `error` is non-empty, it's included as `"error": "..."`.
+std::string formatAck(const std::string& cmd, bool ok,
+                      const std::string& error = "");

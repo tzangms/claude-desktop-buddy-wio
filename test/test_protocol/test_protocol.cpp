@@ -157,6 +157,18 @@ void test_parse_heartbeat_tokens_missing_defaults_zero() {
   TEST_ASSERT_EQUAL_INT64(0, m.heartbeat.tokens_today);
 }
 
+void test_format_ack_ok() {
+  std::string out = formatAck("owner", true);
+  TEST_ASSERT_EQUAL_STRING(R"({"ack":"owner","ok":true})" "\n", out.c_str());
+}
+
+void test_format_ack_err() {
+  std::string out = formatAck("name", false, "empty name");
+  TEST_ASSERT_EQUAL_STRING(
+      R"({"ack":"name","ok":false,"error":"empty name"})" "\n",
+      out.c_str());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_parse_heartbeat_basic);
@@ -178,5 +190,7 @@ int main(int, char**) {
   RUN_TEST(test_parse_heartbeat_no_entries_key);
   RUN_TEST(test_parse_heartbeat_tokens);
   RUN_TEST(test_parse_heartbeat_tokens_missing_defaults_zero);
+  RUN_TEST(test_format_ack_ok);
+  RUN_TEST(test_format_ack_err);
   return UNITY_END();
 }

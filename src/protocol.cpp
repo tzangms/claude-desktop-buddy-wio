@@ -93,3 +93,15 @@ std::string formatPermission(const std::string& promptId,
   out += '\n';
   return out;
 }
+
+std::string formatAck(const std::string& cmd, bool ok,
+                      const std::string& error) {
+  StaticJsonDocument<256> doc;
+  doc["ack"] = cmd;
+  doc["ok"] = ok;
+  if (!error.empty()) doc["error"] = error;
+  std::string out;
+  serializeJson(doc, out);
+  out += '\n';
+  return out;
+}
