@@ -49,6 +49,10 @@ bool manifestSetActive(const char* charName);
 // Currently cached manifest, or nullptr if none.
 const CharManifest* manifestActive();
 
+#ifdef ARDUINO
+bool manifestParseFile(const char* path, CharManifest& out, std::string& err);
+#endif
+
 #ifndef ARDUINO
 // Test-only hooks.
 void _manifestResetForTest();

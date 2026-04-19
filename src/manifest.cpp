@@ -1,8 +1,14 @@
 #include "manifest.h"
 
+#include <cstdio>
 #include <cstring>
 
 #include <ArduinoJson.h>
+
+#ifdef ARDUINO
+#include <Seeed_Arduino_FS.h>
+#include <Seeed_SFUD.h>
+#endif
 
 namespace {
   int hexDigit(char c) {
@@ -132,7 +138,37 @@ bool manifestParseJson(const char* json, size_t len,
   return true;
 }
 
+#ifdef ARDUINO
+bool manifestParseFile(const char* path, CharManifest& out, std::string& err) {
+  File f = SFUD.open(path, FILE_READ);
+  if (!f) { err = "open failed"; return false; }
+  size_t size = f.size();
+  if (size == 0 || size > 8192) {
+    f.close(); err = "size out of range"; return false;
+  }
+  // Read into a heap buffer; stack is tight next to rpcBLE.
+  std::string buf;
+  buf.resize(size);
+  size_t n = f.read(reinterpret_cast<uint8_t*>(&buf[0]), size);
+  f.close();
+  if (n != size) { err = "short read"; return false; }
+  return manifestParseJson(buf.data(), buf.size(), out, err);
+}
+
+bool manifestSetActive(const char* charName) {
+  if (!charName || !charName[0]) return false;
+  char path[96];
+  std::snprintf(path, sizeof(path), "/chars/%s/manifest.json", charName);
+  CharManifest staging;
+  std::string err;
+  if (!manifestParseFile(path, staging, err)) return false;
+  active = staging;
+  hasActive = true;
+  return true;
+}
+#else
 bool manifestSetActive(const char*) { return false; }
+#endif
 
 const CharManifest* manifestActive() {
   return hasActive ? &active : nullptr;
