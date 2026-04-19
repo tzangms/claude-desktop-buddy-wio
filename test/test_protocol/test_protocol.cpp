@@ -1,5 +1,7 @@
 #include <unity.h>
+#include <cstring>
 #include "protocol.h"
+#include "status.h"
 
 void test_parse_heartbeat_basic() {
   std::string line = R"({"total":3,"running":1,"waiting":0,"msg":"working"})";
@@ -169,6 +171,24 @@ void test_format_ack_err() {
       out.c_str());
 }
 
+void test_format_status_ack_shape() {
+  StatusSnapshot snap;
+  snap.name = "Claude-52DA";
+  snap.sec = false;
+  snap.upSec = 12;
+  snap.heapFree = 80000;
+  std::string out = formatStatusAck(snap);
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("ack":"status")"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("ok":true)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("name":"Claude-52DA")"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("sec":false)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("usb":true)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("up":12)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("heap":80000)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("lvl":0)"));
+  TEST_ASSERT_EQUAL('\n', out.back());
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_parse_heartbeat_basic);
@@ -192,5 +212,6 @@ int main(int, char**) {
   RUN_TEST(test_parse_heartbeat_tokens_missing_defaults_zero);
   RUN_TEST(test_format_ack_ok);
   RUN_TEST(test_format_ack_err);
+  RUN_TEST(test_format_status_ack_shape);
   return UNITY_END();
 }
