@@ -13,6 +13,7 @@ enum class Mode {
   Ack,
   Disconnected,
   Fatal,
+  FactoryResetConfirm,
 };
 
 struct PromptData {
@@ -35,6 +36,7 @@ struct HeartbeatData {
 
 struct AppState {
   Mode mode = Mode::BleInit;
+  Mode modeBeforeMenu = Mode::BleInit;  // to restore on menu cancel
   HeartbeatData hb;
   std::string ownerName;
   std::string deviceName;
@@ -42,7 +44,7 @@ struct AppState {
   int32_t     timeOffsetSec = 0;
   uint32_t    timeSetAtMs = 0;
   uint32_t lastHeartbeatMs = 0;
-  uint32_t promptArrivedMs = 0;  // millis() stamp for the current prompt
+  uint32_t promptArrivedMs = 0;
   bool ackApproved = false;
   uint32_t ackUntilMs = 0;
 };
@@ -69,3 +71,12 @@ bool applyNameCmd(AppState& s, const std::string& name, std::string& err);
 
 // Store time sync (epoch + tz offset + local millis stamp).
 void applyTime(AppState& s, int64_t epoch, int32_t offsetSec, uint32_t nowMs);
+
+// Enter the factory-reset confirmation mode from any non-Prompt mode.
+// Saves the current mode for cancel. Does nothing if already in
+// FactoryResetConfirm or if mode is Prompt (approval takes precedence).
+// Returns true if the transition happened.
+bool applyEnterFactoryResetConfirm(AppState& s);
+
+// Cancel pending factory reset; restore the pre-menu mode.
+void applyCancelFactoryReset(AppState& s);

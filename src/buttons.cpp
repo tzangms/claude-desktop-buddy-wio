@@ -17,12 +17,18 @@ static Btn btns[] = {
   {WIO_5S_PRESS, true, true, 0, ButtonEvent::PressNav},
 };
 
+// Long-press tracking for the 5-way center (last entry in btns[]).
+static uint32_t navPressedSinceMs = 0;
+static bool navLongReported = false;
+
 void initButtons() {
   for (auto& b : btns) {
     pinMode(b.pin, INPUT_PULLUP);
     b.lastRaw = digitalRead(b.pin);
     b.stable = b.lastRaw;
   }
+  navPressedSinceMs = 0;
+  navLongReported = false;
 }
 
 ButtonEvent pollButtons(uint32_t nowMs) {
@@ -34,9 +40,26 @@ ButtonEvent pollButtons(uint32_t nowMs) {
     }
     if ((nowMs - b.lastChangeMs) >= BUTTON_DEBOUNCE_MS && raw != b.stable) {
       b.stable = raw;
-      // Active-low: press = LOW
-      if (raw == LOW) return b.evt;
+      if (raw == LOW) {
+        if (b.evt == ButtonEvent::PressNav) {
+          navPressedSinceMs = nowMs;
+          navLongReported = false;
+        }
+        return b.evt;
+      } else {
+        // Released
+        if (b.evt == ButtonEvent::PressNav) {
+          navPressedSinceMs = 0;
+          navLongReported = false;
+        }
+      }
     }
+  }
+  // Long-press detection for 5-way: emitted once while still held.
+  if (!navLongReported && navPressedSinceMs != 0 &&
+      (nowMs - navPressedSinceMs) >= BUTTON_LONG_PRESS_MS) {
+    navLongReported = true;
+    return ButtonEvent::LongPressNav;
   }
   return ButtonEvent::None;
 }

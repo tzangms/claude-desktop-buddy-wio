@@ -33,6 +33,10 @@ void persistSetOwnerName(const char* name);
 void persistIncAppr();
 void persistIncDeny();
 
+// Reset persisted data to defaults and flush immediately. Caller usually
+// follows with a system reset to re-run setup() with fresh state.
+void persistFactoryReset();
+
 #ifndef ARDUINO
 const uint8_t* _persistFakeFile();
 size_t _persistFakeFileSize();

@@ -161,3 +161,8 @@ void persistIncDeny() {
   data.deny++;
   persistCommit(true);
 }
+
+void persistFactoryReset() {
+  setDefaults();
+  persistCommit(true);
+}

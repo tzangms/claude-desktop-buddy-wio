@@ -6,7 +6,8 @@ enum class ButtonEvent {
   PressA,
   PressB,
   PressC,
-  PressNav,  // 5-way center press (wakeup only)
+  PressNav,       // 5-way center: instant press edge
+  LongPressNav,   // 5-way center: emitted once after hold exceeds BUTTON_LONG_PRESS_MS
 };
 
 void initButtons();

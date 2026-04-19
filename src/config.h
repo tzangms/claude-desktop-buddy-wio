@@ -19,6 +19,7 @@ static constexpr uint32_t ACK_DISPLAY_MS       = 1000;
 static constexpr uint32_t BUTTON_DEBOUNCE_MS   = 20;
 static constexpr uint32_t POST_SEND_LOCKOUT_MS = 500;
 static constexpr uint32_t BACKLIGHT_IDLE_MS    = 60000;
+static constexpr uint32_t BUTTON_LONG_PRESS_MS = 2000;
 
 // --- Display (320x240 landscape after setRotation(3)) ---
 static constexpr int SCREEN_W = 320;

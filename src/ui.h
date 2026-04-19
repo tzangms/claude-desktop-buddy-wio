@@ -11,3 +11,4 @@ void renderPrompt(const AppState& s, bool fullRedraw);
 void renderAck(const AppState& s);
 void renderDisconnected();
 void renderFatal(const char* msg);
+void renderFactoryResetConfirm(bool fullRedraw);

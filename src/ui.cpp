@@ -259,6 +259,30 @@ void renderDisconnected() {
   tft.print("scanning...");
 }
 
+void renderFactoryResetConfirm(bool fullRedraw) {
+  if (!fullRedraw) return;
+  clearAll();
+  drawHeader("FACTORY RESET?", COLOR_ALERT_BG, COLOR_ALERT_TEXT);
+  tft.setTextColor(COLOR_FG, COLOR_BG);
+  tft.setTextSize(2);
+  tft.setCursor(16, 60);
+  tft.print("Wipe stats,");
+  tft.setCursor(16, 85);
+  tft.print("name, and owner.");
+  tft.setTextColor(COLOR_DIM, COLOR_BG);
+  tft.setTextSize(1);
+  tft.setCursor(16, 120);
+  tft.print("Device will reboot immediately.");
+
+  tft.fillRect(0, SCREEN_H - 24, SCREEN_W, 24, COLOR_FOOTER_BG);
+  tft.setTextColor(COLOR_FG);
+  tft.setTextSize(2);
+  tft.setCursor(12, SCREEN_H - 20);
+  tft.print("[C] Cancel");
+  tft.setCursor(SCREEN_W - 170, SCREEN_H - 20);
+  tft.print("[A] Confirm");
+}
+
 void renderFatal(const char* msg) {
   clearAll();
   drawHeader("FATAL", COLOR_ALERT_BG, COLOR_ALERT_TEXT);

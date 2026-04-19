@@ -108,6 +108,33 @@ void test_new_prompt_id_during_prompt_updates_without_ack() {
   TEST_ASSERT_EQUAL_STRING("Read", s.hb.prompt.tool.c_str());
 }
 
+void test_factory_reset_confirm_from_idle() {
+  AppState s = freshConnected();
+  HeartbeatData hb;
+  applyHeartbeat(s, hb, 0);
+  TEST_ASSERT_EQUAL(static_cast<int>(Mode::Idle), static_cast<int>(s.mode));
+  bool entered = applyEnterFactoryResetConfirm(s);
+  TEST_ASSERT_TRUE(entered);
+  TEST_ASSERT_EQUAL(static_cast<int>(Mode::FactoryResetConfirm),
+                    static_cast<int>(s.mode));
+  TEST_ASSERT_EQUAL(static_cast<int>(Mode::Idle),
+                    static_cast<int>(s.modeBeforeMenu));
+  applyCancelFactoryReset(s);
+  TEST_ASSERT_EQUAL(static_cast<int>(Mode::Idle), static_cast<int>(s.mode));
+}
+
+void test_factory_reset_confirm_blocked_in_prompt() {
+  AppState s = freshConnected();
+  HeartbeatData hb;
+  hb.hasPrompt = true;
+  hb.prompt.id = "req_1";
+  applyHeartbeat(s, hb, 0);
+  TEST_ASSERT_EQUAL(static_cast<int>(Mode::Prompt), static_cast<int>(s.mode));
+  bool entered = applyEnterFactoryResetConfirm(s);
+  TEST_ASSERT_FALSE(entered);
+  TEST_ASSERT_EQUAL(static_cast<int>(Mode::Prompt), static_cast<int>(s.mode));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_first_heartbeat_without_prompt_enters_idle);
@@ -119,5 +146,7 @@ int main(int, char**) {
   RUN_TEST(test_ack_expires_to_idle);
   RUN_TEST(test_heartbeat_timeout_disconnects);
   RUN_TEST(test_new_prompt_id_during_prompt_updates_without_ack);
+  RUN_TEST(test_factory_reset_confirm_from_idle);
+  RUN_TEST(test_factory_reset_confirm_blocked_in_prompt);
   return UNITY_END();
 }
