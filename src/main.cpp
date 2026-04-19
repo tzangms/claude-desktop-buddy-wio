@@ -12,6 +12,7 @@
 #include "pet.h"
 #include "xfer.h"
 #include "manifest.h"
+#include "character.h"
 
 static AppState appState;
 static Mode lastRenderedMode = Mode::BleInit;
@@ -31,11 +32,18 @@ static std::string deviceSuffix() {
 }
 
 static void render(bool force) {
-  bool modeChanged = appState.mode != lastRenderedMode;
-  bool promptChanged = appState.hb.prompt.id != lastRenderedPromptId;
+  // Snapshot mode + prompt at entry. rpcBLE callbacks run in a separate
+  // task and can mutate appState mid-dispatch; if we re-read at the end
+  // lastRenderedMode can end up reflecting the post-race mode, not what
+  // we actually drew, which breaks modeChanged detection on the next
+  // render and skips fullRedraw → prior text lingers in layout gaps.
+  Mode m = appState.mode;
+  std::string pid = appState.hb.prompt.id;
+  bool modeChanged = m != lastRenderedMode;
+  bool promptChanged = pid != lastRenderedPromptId;
   if (!force && !modeChanged && !promptChanged) return;
 
-  switch (appState.mode) {
+  switch (m) {
     case Mode::BleInit:      renderBoot("BLE init..."); break;
     case Mode::Advertising:  {
       std::string n = std::string(DEVICE_NAME_PREFIX) + deviceSuffix();
@@ -49,8 +57,8 @@ static void render(bool force) {
     case Mode::Fatal:        renderFatal("see serial"); break;
     case Mode::FactoryResetConfirm: renderFactoryResetConfirm(modeChanged); break;
   }
-  lastRenderedMode = appState.mode;
-  lastRenderedPromptId = appState.hb.prompt.id;
+  lastRenderedMode = m;
+  lastRenderedPromptId = pid;
 }
 
 static void onLine(const std::string& line) {
@@ -145,6 +153,7 @@ void setup() {
   backlightInit();
   persistInit();
   manifestLoadActiveFromPersist();
+  characterInit();
   xferInit();
   if (persistGet().deviceName[0] == '\0') {
     std::string def = std::string(DEVICE_NAME_PREFIX) + deviceSuffix();
@@ -186,6 +195,13 @@ void loop() {
 
   bool conn = isBleConnected();
   if (conn && appState.mode == Mode::Advertising) {
+    applyConnected(appState);
+    render(true);
+  } else if (conn && appState.mode == Mode::Disconnected) {
+    // Recovery path — if applyTimeouts (heartbeat stale >30s) flipped us
+    // to Disconnected but the BLE link is still up, OR a mid-loop
+    // disconnect+reconnect raced, restore Connected so the screen doesn't
+    // linger on Disconnected text until the next heartbeat.
     applyConnected(appState);
     render(true);
   } else if (!conn && (appState.mode == Mode::Idle ||
@@ -243,9 +259,28 @@ void loop() {
 
   backlightTick(appState, now);
   persistTick(now);
-  // Pet is only visible on the Idle screen; only gating renders there
-  // prevents the 500ms frame tick from repainting Advertising / Connected
-  // / Disconnected screens (which previously caused visible flicker).
+  // Track mode transitions so re-entering Idle from Prompt/Ack triggers
+  // a characterSetState even when PetState is unchanged — otherwise
+  // renderIdle's characterInvalidate leaves the buddy slot blank until
+  // PetState changes (bug from SP6b initial wiring).
+  static Mode lastCharMode = Mode::BleInit;
+  if (appState.mode == Mode::Idle && characterReady()) {
+    static PetState lastCharState = PetState::Sleep;
+    static bool     lastCharInit  = false;
+    if (lastCharMode != Mode::Idle) lastCharInit = false;
+    PetState charSt = petComputeState(appState, now);
+    if (!lastCharInit || charSt != lastCharState) {
+      characterSetState(charSt);
+      lastCharState = charSt;
+      lastCharInit  = true;
+    }
+    characterTick(now);
+  }
+  lastCharMode = appState.mode;
+
+  // Pet (ASCII fallback) tick still drives PetState-cache for renderIdle
+  // when characterReady() is false. Harmless when buddy is active — no
+  // ui.cpp render occurs during the buddy frame window (Idle cached).
   bool petAdvanced = petTickFrame(now);
   if (petAdvanced && appState.mode == Mode::Idle) pendingRender = true;
 

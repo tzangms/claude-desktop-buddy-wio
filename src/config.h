@@ -58,3 +58,13 @@ static constexpr uint32_t PET_DIZZY_MS                = 2000;
 // --- SP4b.4 folder push transport ---
 static constexpr uint32_t CHAR_MAX_TOTAL_BYTES = 1800000;  // 1.8 MB per spec
 static constexpr uint32_t CHAR_MAX_FILE_BYTES  = 1000000;
+
+// --- SP6b character render (GIF buddy display) ---
+static constexpr int BUDDY_X = 8;
+static constexpr int BUDDY_Y = 34;
+static constexpr int BUDDY_W = 96;
+static constexpr int BUDDY_H = 100;
+
+// Idle variant rotation (per reference character.cpp).
+static constexpr uint32_t VARIANT_DWELL_MS = 5000;  // min time per variant
+static constexpr uint32_t ANIM_PAUSE_MS    = 800;   // pause between variants
