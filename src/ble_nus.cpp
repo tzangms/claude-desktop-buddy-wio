@@ -12,7 +12,7 @@ static std::string rxBuf;
 static bool connected = false;
 
 class ServerCB : public BLEServerCallbacks {
-  void onConnect(BLEServer*) override    { connected = true;  }
+  void onConnect(BLEServer*) override { connected = true; }
   void onDisconnect(BLEServer* s) override {
     connected = false;
     rxBuf.clear();

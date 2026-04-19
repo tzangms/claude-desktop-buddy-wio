@@ -29,6 +29,7 @@ void test_init_loads_existing_data() {
   std::strcpy(good.ownerName, "Felix");
   persistMut() = good;
   persistCommit(true);
+  persistTick(0);
   persistInit();
   const PersistData& d = persistGet();
   TEST_ASSERT_EQUAL_INT32(17, d.appr);
@@ -47,6 +48,7 @@ void test_init_rejects_wrong_magic() {
   bad.appr = 99;
   persistMut() = bad;
   persistCommit(true);
+  persistTick(0);
   persistInit();
   TEST_ASSERT_EQUAL_INT32(0, persistGet().appr);
   TEST_ASSERT_EQUAL_UINT32(PERSIST_MAGIC, persistGet().magic);
@@ -60,17 +62,21 @@ void test_init_rejects_wrong_version() {
   bad.appr = 99;
   persistMut() = bad;
   persistCommit(true);
+  persistTick(0);
   persistInit();
   TEST_ASSERT_EQUAL_INT32(0, persistGet().appr);
   TEST_ASSERT_EQUAL_UINT32(PERSIST_VERSION, persistGet().version);
 }
 
-void test_commit_immediate_flushes_now() {
+void test_commit_immediate_flushes_on_next_tick() {
   _persistResetFakeFile();
   persistInit();
   int before = _persistWriteCount();
   persistMut().appr = 7;
   persistCommit(true);
+  // Deferred: no flush yet.
+  TEST_ASSERT_EQUAL(before, _persistWriteCount());
+  persistTick(0);
   TEST_ASSERT_EQUAL(before + 1, _persistWriteCount());
   persistInit();
   TEST_ASSERT_EQUAL_INT32(7, persistGet().appr);
@@ -164,7 +170,7 @@ int main(int, char**) {
   RUN_TEST(test_init_loads_existing_data);
   RUN_TEST(test_init_rejects_wrong_magic);
   RUN_TEST(test_init_rejects_wrong_version);
-  RUN_TEST(test_commit_immediate_flushes_now);
+  RUN_TEST(test_commit_immediate_flushes_on_next_tick);
   RUN_TEST(test_commit_debounced_waits_under_threshold);
   RUN_TEST(test_tick_flushes_after_time_threshold);
   RUN_TEST(test_tick_skips_when_clean);

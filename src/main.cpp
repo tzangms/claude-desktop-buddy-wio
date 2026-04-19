@@ -76,8 +76,10 @@ static void onLine(const std::string& line) {
     }
     case MessageKind::Owner:
       if (applyOwner(appState, m.ownerName)) pendingRender = true;
-      persistSetOwnerName(m.ownerName.c_str());
+      // Ack before the QSPI flash write so the ~30-50ms flush doesn't
+      // miss the desktop's connect-time timeout window.
       sendLine(formatAck("owner", true));
+      persistSetOwnerName(m.ownerName.c_str());
       break;
     case MessageKind::Time:
       applyTime(appState, m.timeEpoch, m.timeOffsetSec, now);
@@ -90,8 +92,8 @@ static void onLine(const std::string& line) {
     case MessageKind::NameCmd: {
       std::string err;
       bool ok = applyNameCmd(appState, m.nameValue, err);
-      if (ok) persistSetDeviceName(appState.deviceName.c_str());
       sendLine(formatAck("name", ok, err));
+      if (ok) persistSetDeviceName(appState.deviceName.c_str());
       break;
     }
     case MessageKind::UnpairCmd:
@@ -202,14 +204,16 @@ void loop() {
       PermissionDecision d;
       std::string id;
       if (applyButton(appState, btn, now, d, id)) {
+        // Send the permission decision first so the desktop sees it with
+        // minimum latency; the counter flush can take 30-50ms.
+        std::string line = formatPermission(id, d);
+        sendLine(line);
         if (btn == 'A') {
-          persistIncAppr();
           if (promptAge < PET_APPROVE_HEART_WINDOW_MS) petTriggerHeart(now);
+          persistIncAppr();
         } else {
           persistIncDeny();
         }
-        std::string line = formatPermission(id, d);
-        sendLine(line);
         lastButtonSendMs = now;
         render(true);
       }
