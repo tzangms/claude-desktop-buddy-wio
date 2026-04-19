@@ -5,6 +5,7 @@
 #include "ui.h"
 #include "buttons.h"
 #include "ble_nus.h"
+#include "mem.h"
 
 static AppState appState;
 static Mode lastRenderedMode = Mode::BleInit;
