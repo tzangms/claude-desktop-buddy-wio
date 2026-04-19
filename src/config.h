@@ -38,3 +38,10 @@ static constexpr uint16_t COLOR_FOOTER_BG  = 0x2104;  // near-black grey
 static constexpr size_t ENTRIES_MAX      = 5;
 static constexpr size_t ENTRY_CHARS_MAX  = 128;
 static constexpr size_t NAME_CHARS_MAX   = 32;
+
+// --- SP2 persistence ---
+static constexpr uint32_t PERSIST_MAGIC           = 0xC1A7DE42;
+static constexpr uint32_t PERSIST_VERSION         = 1;
+static constexpr uint32_t PERSIST_DEBOUNCE_MS     = 300000;
+static constexpr int64_t  PERSIST_DEBOUNCE_TOKENS = 1000;
+static constexpr int64_t  TOKENS_PER_LEVEL        = 50000;
