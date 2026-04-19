@@ -95,6 +95,12 @@ void persistTick(uint32_t nowMs) {
   lastFlushMs = nowMs;
 }
 
-void persistUpdateFromHeartbeat(int64_t /*sessionTokens*/, int64_t /*tokensToday*/) {
-  // Lands in Task 7
+void persistUpdateFromHeartbeat(int64_t sessionTokens, int64_t tokensToday) {
+  if (sessionTokens >= prevSessionTokens) {
+    int64_t delta = sessionTokens - prevSessionTokens;
+    data.deviceLifetimeTokens += delta;
+  }
+  prevSessionTokens = sessionTokens;
+  data.lvl = static_cast<int32_t>(data.deviceLifetimeTokens / TOKENS_PER_LEVEL);
+  data.tokens_today = tokensToday;
 }
