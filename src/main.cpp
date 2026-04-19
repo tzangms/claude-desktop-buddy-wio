@@ -58,13 +58,11 @@ static void onLine(const std::string& line) {
           appState.mode == Mode::Disconnected) {
         applyConnected(appState);
       }
-      bool prevHasPrompt = appState.hb.hasPrompt;
-      std::string prevPromptId = appState.hb.prompt.id;
+      bool newPrompt = m.heartbeat.hasPrompt &&
+                       (!appState.hb.hasPrompt ||
+                        m.heartbeat.prompt.id != appState.hb.prompt.id);
       applyHeartbeat(appState, std::move(m.heartbeat), now);
-      if ((!prevHasPrompt && appState.hb.hasPrompt) ||
-          (appState.hb.hasPrompt && appState.hb.prompt.id != prevPromptId)) {
-        backlightWake(now);
-      }
+      if (newPrompt) backlightWake(now);
       pendingRender = true;
       break;
     }
