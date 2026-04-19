@@ -133,6 +133,40 @@ void test_parse_state_array_over_cap_truncates_with_warning() {
   TEST_ASSERT_TRUE(err.find("truncated") != std::string::npos);
 }
 
+static const char* kBufoReal = R"({
+  "name": "bufo",
+  "colors": { "body":"#6B8E23","bg":"#000000","text":"#FFFFFF",
+              "textDim":"#808080","ink":"#000000" },
+  "states": {
+    "sleep": "sleep.gif",
+    "idle":  ["idle_0.gif","idle_1.gif","idle_2.gif","idle_3.gif",
+              "idle_4.gif","idle_5.gif","idle_6.gif","idle_7.gif","idle_8.gif"],
+    "busy":"busy.gif","attention":"attention.gif",
+    "celebrate":"celebrate.gif","dizzy":"dizzy.gif","heart":"heart.gif"
+  }
+})";
+
+void test_parse_unknown_state_ignored() {
+  const char* j = R"({"name":"x","colors":{"body":"#000000","bg":"#000000",
+    "text":"#000000","textDim":"#000000","ink":"#000000"},
+    "states":{"dancing":"d.gif","idle":"i.gif"}})";
+  CharManifest m{};
+  std::string err;
+  TEST_ASSERT_TRUE(manifestParseJson(j, std::strlen(j), m, err));
+  TEST_ASSERT_EQUAL_UINT8(1, m.stateVariantCount[MANIFEST_STATE_IDLE]);
+  TEST_ASSERT_TRUE(err.empty());  // unknown is not an error
+}
+
+void test_parse_real_bufo_manifest() {
+  CharManifest m{};
+  std::string err;
+  TEST_ASSERT_TRUE(manifestParseJson(kBufoReal, std::strlen(kBufoReal), m, err));
+  TEST_ASSERT_EQUAL_STRING("bufo", m.name);
+  TEST_ASSERT_EQUAL_UINT8(9, m.stateVariantCount[MANIFEST_STATE_IDLE]);
+  TEST_ASSERT_EQUAL_STRING("idle_8.gif", m.states[MANIFEST_STATE_IDLE][8]);
+  TEST_ASSERT_EQUAL_UINT8(0, m.stateVariantCount[MANIFEST_STATE_NAP]);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_active_initially_null);
@@ -148,5 +182,7 @@ int main(int, char**) {
   RUN_TEST(test_parse_state_array_multiple_variants);
   RUN_TEST(test_parse_state_missing_is_zero_count);
   RUN_TEST(test_parse_state_array_over_cap_truncates_with_warning);
+  RUN_TEST(test_parse_unknown_state_ignored);
+  RUN_TEST(test_parse_real_bufo_manifest);
   return UNITY_END();
 }
