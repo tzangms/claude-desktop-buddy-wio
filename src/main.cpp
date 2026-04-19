@@ -2,6 +2,7 @@
 #include "config.h"
 #include "state.h"
 #include "protocol.h"
+#include "status.h"
 #include "ui.h"
 #include "buttons.h"
 #include "ble_nus.h"
@@ -67,8 +68,28 @@ static void onLine(const std::string& line) {
       break;
     case MessageKind::Owner:
       if (applyOwner(appState, m.ownerName)) pendingRender = true;
+      sendLine(formatAck("owner", true));
       break;
     case MessageKind::Time:
+      applyTime(appState, m.timeEpoch, m.timeOffsetSec, now);
+      break;
+    case MessageKind::StatusCmd: {
+      StatusSnapshot snap = captureStatus(appState, now);
+      sendLine(formatStatusAck(snap));
+      break;
+    }
+    case MessageKind::NameCmd: {
+      std::string err;
+      bool ok = applyNameCmd(appState, m.nameValue, err);
+      sendLine(formatAck("name", ok, err));
+      break;
+    }
+    case MessageKind::UnpairCmd:
+      sendLine(formatAck("unpair", true));
+      break;
+    case MessageKind::TurnEvent:
+      // drop
+      break;
     case MessageKind::Unknown:
     case MessageKind::ParseError:
       break;
@@ -82,6 +103,7 @@ void setup() {
   initButtons();
   renderBoot("BLE init...");
 
+  appState.deviceName = std::string(DEVICE_NAME_PREFIX) + deviceSuffix();
   appState.mode = Mode::BleInit;
   if (!initBle(deviceSuffix(), onLine)) {
     appState.mode = Mode::Fatal;
