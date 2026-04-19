@@ -56,7 +56,13 @@
 - Only after that works, enable characteristic encryption and test on a second device to avoid locking the primary.
 - Implement `unpair` as the final step.
 
-**Scope estimate**: 1-2 SPs, but each requires a second Wio Terminal (or willingness to re-flash aggressively) for testing.
+**Library check (2026-04-19)**: I grepped `.pio/libdeps/seeed_wio_terminal/Seeed Arduino rpcBLE/src/*.h` for `Security|Bonding|passkey|setEncrypt|BLESecurity` — **zero matches**. The rpcBLE API exposes connect/advertise/GATT but no pairing/bonding surface. The 2901/2902/Beacon/URL headers are all present; there is no `BLESecurity.h`.
+
+**Implication**: SP5 as specified cannot be implemented without either (a) swapping BLE stacks entirely (not viable inside this project) or (b) extending rpcBLE's RPC surface to expose the underlying RTL8720DN SMP calls, which is a library-maintenance task far outside firmware scope.
+
+**Recommendation**: accept that status ack always reports `sec: false`; document the NUS link as plaintext in the README security section; leave `{"cmd":"unpair"}` as the SP1 no-op ack; skip SP5 until (i) rpcBLE grows a BLESecurity equivalent, or (ii) the project migrates to a BLE stack that supports LESC bonding.
+
+**Scope estimate**: N/A — blocked on upstream library gap.
 
 ---
 
@@ -65,8 +71,10 @@
 - SP4a.1 — multi-frame pet animations (merged #7)
 - SP4b.2 — celebrate + heart states with triggers from main.cpp (merged #8)
 - SP4b.1 — dizzy + nap states (state machine only; IMU deferred) (merged #9)
+- SP4b.3 — factory reset menu via long-press 5-way (merged #10)
+- SP5 — **blocked**: rpcBLE has no security/bonding API (see updated notes above)
 
-72/72 native tests passing on `main @ af507e9`. All device builds clean.
+74/74 native tests passing on `main @ c1074bb`. All device builds clean.
 
 ## Not completed (user should confirm on wake)
 
