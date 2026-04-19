@@ -6,7 +6,7 @@
 #include <cstring>
 #include "TFT_eSPI.h"
 
-static TFT_eSPI tft;
+TFT_eSPI tft;
 
 static void clearAll() {
   tft.fillScreen(COLOR_BG);
