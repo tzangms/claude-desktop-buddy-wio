@@ -26,6 +26,7 @@ int _persistWriteCount() { return writeCount; }
 namespace {
   PersistData data;
   bool dirty = false;
+  bool forceFlushNextTick = false;
   uint32_t lastFlushMs = 0;
   int64_t lastFlushedLifetimeTokens = 0;
   int64_t prevSessionTokens = 0;
@@ -103,25 +104,30 @@ void persistInit() {
   lastFlushedLifetimeTokens = data.deviceLifetimeTokens;
   lastFlushMs = 0;
   dirty = false;
+  forceFlushNextTick = false;
 }
 
 const PersistData& persistGet() { return data; }
 PersistData& persistMut() { return data; }
 
 void persistCommit(bool immediate) {
+  // Never flush from here: this is often called from BLE onLine callback,
+  // and synchronous QSPI writes from that stack can starve rpcBLE.
+  // immediate=true just asks persistTick to flush on its very next call.
   dirty = true;
-  if (immediate && fsReady) {
-    flush();
-  }
+  if (immediate) forceFlushNextTick = true;
 }
 
 void persistTick(uint32_t nowMs) {
   if (!dirty || !fsReady) return;
-  int64_t tokenDelta = data.deviceLifetimeTokens - lastFlushedLifetimeTokens;
-  bool timeTriggered  = (nowMs - lastFlushMs) >= PERSIST_DEBOUNCE_MS;
-  bool tokenTriggered = tokenDelta >= PERSIST_DEBOUNCE_TOKENS;
-  if (!timeTriggered && !tokenTriggered) return;
+  if (!forceFlushNextTick) {
+    int64_t tokenDelta = data.deviceLifetimeTokens - lastFlushedLifetimeTokens;
+    bool timeTriggered  = (nowMs - lastFlushMs) >= PERSIST_DEBOUNCE_MS;
+    bool tokenTriggered = tokenDelta >= PERSIST_DEBOUNCE_TOKENS;
+    if (!timeTriggered && !tokenTriggered) return;
+  }
   flush();
+  forceFlushNextTick = false;
   lastFlushMs = nowMs;
 }
 
