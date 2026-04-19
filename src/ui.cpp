@@ -175,9 +175,11 @@ void renderIdle(const AppState& s, bool fullRedraw) {
     uint16_t petColour;
     switch (st) {
       case PetState::Attention: petColour = COLOR_ALERT_FG; break;
-      case PetState::Celebrate: petColour = COLOR_WARN; break;
+      case PetState::Celebrate: petColour = COLOR_WARN;     break;
       case PetState::Heart:     petColour = COLOR_ALERT_FG; break;
-      default:                  petColour = COLOR_OK; break;
+      case PetState::Dizzy:     petColour = COLOR_WARN;     break;
+      case PetState::Nap:       petColour = COLOR_DIM;      break;
+      default:                  petColour = COLOR_OK;       break;
     }
     tft.fillRect(120, 188, 80, 32, COLOR_BG);
     tft.setTextColor(petColour, COLOR_BG);

@@ -33,14 +33,25 @@ namespace {
     { "  <3  ", " (^_^)", " | v |", " '---'" },
     { " <3 <3", " (^_^)", " | v |", " '---'" },
   };
+  const char* const FRAMES_DIZZY[PET_FRAMES_PER_STATE][PET_FACE_LINES] = {
+    { " ,---.", " (@ @)", " | ~ |", " '---'" },
+    { " ,---.", " (@.@)", " | ~ |", " '---'" },
+    { " ,---.", " (@ @)", " | ~ |", " '---'" },
+  };
+  const char* const FRAMES_NAP[PET_FRAMES_PER_STATE][PET_FACE_LINES] = {
+    { " ,---.", " (- -)", " | Z |", " '-Z-'" },
+    { " ,---.", " (- -)", " | z |", " '-Z-'" },
+    { " ,---.", " (- -)", " | Z |", " '-z-'" },
+  };
 
   size_t frameIdx = 0;
   uint32_t lastFrameMs = 0;
   uint32_t celebrateUntilMs = 0;
   uint32_t heartUntilMs = 0;
+  uint32_t dizzyUntilMs = 0;
+  bool napping = false;
 
   inline bool active(uint32_t untilMs, uint32_t nowMs) {
-    // Signed diff handles uint32 wrap.
     return static_cast<int32_t>(untilMs - nowMs) > 0;
   }
 }
@@ -48,6 +59,8 @@ namespace {
 PetState petComputeState(const AppState& s, uint32_t nowMs) {
   if (active(celebrateUntilMs, nowMs)) return PetState::Celebrate;
   if (active(heartUntilMs, nowMs))     return PetState::Heart;
+  if (active(dizzyUntilMs, nowMs))     return PetState::Dizzy;
+  if (napping)                          return PetState::Nap;
   switch (s.mode) {
     case Mode::Prompt:
       return PetState::Attention;
@@ -70,6 +83,8 @@ const char* const* petFace(PetState state, size_t f) {
     case PetState::Attention: return FRAMES_ATTENTION[f];
     case PetState::Celebrate: return FRAMES_CELEBRATE[f];
     case PetState::Heart:     return FRAMES_HEART[f];
+    case PetState::Dizzy:     return FRAMES_DIZZY[f];
+    case PetState::Nap:       return FRAMES_NAP[f];
   }
   return FRAMES_IDLE[0];
 }
@@ -96,4 +111,20 @@ void petTriggerCelebrate(uint32_t nowMs) {
 
 void petTriggerHeart(uint32_t nowMs) {
   heartUntilMs = nowMs + PET_HEART_MS;
+}
+
+void petTriggerDizzy(uint32_t nowMs) {
+  dizzyUntilMs = nowMs + PET_DIZZY_MS;
+}
+
+void petEnterNap() {
+  napping = true;
+}
+
+void petExitNap() {
+  napping = false;
+}
+
+bool petIsNapping() {
+  return napping;
 }
