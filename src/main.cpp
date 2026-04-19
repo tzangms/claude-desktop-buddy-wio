@@ -7,6 +7,7 @@
 #include "buttons.h"
 #include "ble_nus.h"
 #include "mem.h"
+#include "backlight.h"
 
 static AppState appState;
 static Mode lastRenderedMode = Mode::BleInit;
@@ -38,7 +39,7 @@ static void render(bool force) {
     }
     case Mode::Connected:    renderConnected(); break;
     case Mode::Idle:         renderIdle(appState, modeChanged); break;
-    case Mode::Prompt:       renderPrompt(appState); break;
+    case Mode::Prompt:       renderPrompt(appState, modeChanged || promptChanged); break;
     case Mode::Ack:          renderAck(appState); break;
     case Mode::Disconnected: renderDisconnected(); break;
     case Mode::Fatal:        renderFatal("see serial"); break;
@@ -52,14 +53,19 @@ static void onLine(const std::string& line) {
   uint32_t now = millis();
   ParsedMessage m = parseLine(line);
   switch (m.kind) {
-    case MessageKind::Heartbeat:
+    case MessageKind::Heartbeat: {
       if (appState.mode == Mode::Connected ||
           appState.mode == Mode::Disconnected) {
         applyConnected(appState);
       }
+      bool newPrompt = m.heartbeat.hasPrompt &&
+                       (!appState.hb.hasPrompt ||
+                        m.heartbeat.prompt.id != appState.hb.prompt.id);
       applyHeartbeat(appState, std::move(m.heartbeat), now);
+      if (newPrompt) backlightWake(now);
       pendingRender = true;
       break;
+    }
     case MessageKind::Owner:
       if (applyOwner(appState, m.ownerName)) pendingRender = true;
       sendLine(formatAck("owner", true));
@@ -94,6 +100,7 @@ void setup() {
   while (!Serial && millis() < 3000) {}
   initUi();
   initButtons();
+  backlightInit();
   renderBoot("BLE init...");
 
   appState.deviceName = std::string(DEVICE_NAME_PREFIX) + deviceSuffix();
@@ -134,6 +141,9 @@ void loop() {
 
   if ((now - lastButtonSendMs) > POST_SEND_LOCKOUT_MS) {
     ButtonEvent e = pollButtons(now);
+    if (e != ButtonEvent::None) {
+      backlightWake(now);
+    }
     if (e == ButtonEvent::PressA || e == ButtonEvent::PressC) {
       char btn = (e == ButtonEvent::PressA) ? 'A' : 'C';
       PermissionDecision d;
@@ -148,6 +158,8 @@ void loop() {
   }
 
   if (applyTimeouts(appState, now)) render(true);
+
+  backlightTick(appState, now);
 
   delay(10);
 }

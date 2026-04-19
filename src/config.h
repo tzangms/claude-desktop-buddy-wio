@@ -18,6 +18,7 @@ static constexpr uint32_t HEARTBEAT_TIMEOUT_MS = 30000;
 static constexpr uint32_t ACK_DISPLAY_MS       = 1000;
 static constexpr uint32_t BUTTON_DEBOUNCE_MS   = 20;
 static constexpr uint32_t POST_SEND_LOCKOUT_MS = 500;
+static constexpr uint32_t BACKLIGHT_IDLE_MS    = 60000;
 
 // --- Display (320x240 landscape after setRotation(3)) ---
 static constexpr int SCREEN_W = 320;
@@ -32,10 +33,6 @@ static constexpr uint16_t COLOR_WARN       = 0xFD20;  // orange
 static constexpr uint16_t COLOR_ALERT_BG   = 0xC000;  // red
 static constexpr uint16_t COLOR_ALERT_TEXT = 0xFFFF;
 static constexpr uint16_t COLOR_FOOTER_BG  = 0x2104;  // near-black grey
-
-// --- Backlight ---
-static constexpr uint8_t BACKLIGHT_FULL = 255;
-static constexpr uint8_t BACKLIGHT_DIM  = 50;
 
 // --- SP1 protocol completeness ---
 static constexpr size_t ENTRIES_MAX      = 5;
