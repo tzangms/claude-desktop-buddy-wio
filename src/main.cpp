@@ -45,6 +45,7 @@ static void render(bool force) {
     case Mode::Ack:          renderAck(appState); break;
     case Mode::Disconnected: renderDisconnected(); break;
     case Mode::Fatal:        renderFatal("see serial"); break;
+    case Mode::FactoryResetConfirm: renderFactoryResetConfirm(modeChanged); break;
   }
   lastRenderedMode = appState.mode;
   lastRenderedPromptId = appState.hb.prompt.id;
@@ -158,7 +159,19 @@ void loop() {
     if (e != ButtonEvent::None) {
       backlightWake(now);
     }
-    if (e == ButtonEvent::PressA || e == ButtonEvent::PressC) {
+    if (e == ButtonEvent::LongPressNav) {
+      if (applyEnterFactoryResetConfirm(appState)) render(true);
+    } else if (appState.mode == Mode::FactoryResetConfirm) {
+      if (e == ButtonEvent::PressA) {
+        persistFactoryReset();
+        delay(100);  // flush serial
+        NVIC_SystemReset();
+        // unreachable
+      } else if (e == ButtonEvent::PressC) {
+        applyCancelFactoryReset(appState);
+        render(true);
+      }
+    } else if (e == ButtonEvent::PressA || e == ButtonEvent::PressC) {
       char btn = (e == ButtonEvent::PressA) ? 'A' : 'C';
       uint32_t promptAge = now - appState.promptArrivedMs;
       PermissionDecision d;

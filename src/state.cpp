@@ -86,3 +86,16 @@ void applyTime(AppState& s, int64_t epoch, int32_t offsetSec, uint32_t nowMs) {
   s.timeOffsetSec = offsetSec;
   s.timeSetAtMs = nowMs;
 }
+
+bool applyEnterFactoryResetConfirm(AppState& s) {
+  if (s.mode == Mode::Prompt) return false;
+  if (s.mode == Mode::FactoryResetConfirm) return false;
+  s.modeBeforeMenu = s.mode;
+  s.mode = Mode::FactoryResetConfirm;
+  return true;
+}
+
+void applyCancelFactoryReset(AppState& s) {
+  if (s.mode != Mode::FactoryResetConfirm) return;
+  s.mode = s.modeBeforeMenu;
+}
