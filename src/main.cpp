@@ -220,7 +220,11 @@ void loop() {
 
   backlightTick(appState, now);
   persistTick(now);
-  if (petTickFrame(now)) pendingRender = true;
+  // Pet is only visible on the Idle screen; only gating renders there
+  // prevents the 500ms frame tick from repainting Advertising / Connected
+  // / Disconnected screens (which previously caused visible flicker).
+  bool petAdvanced = petTickFrame(now);
+  if (petAdvanced && appState.mode == Mode::Idle) pendingRender = true;
 
   delay(10);
 }
