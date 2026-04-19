@@ -57,7 +57,7 @@ static void onLine(const std::string& line) {
           appState.mode == Mode::Disconnected) {
         applyConnected(appState);
       }
-      applyHeartbeat(appState, m.heartbeat, now);
+      applyHeartbeat(appState, std::move(m.heartbeat), now);
       pendingRender = true;
       break;
     case MessageKind::Owner:
@@ -82,7 +82,6 @@ static void onLine(const std::string& line) {
       sendLine(formatAck("unpair", true));
       break;
     case MessageKind::TurnEvent:
-      // drop
       break;
     case MessageKind::Unknown:
     case MessageKind::ParseError:

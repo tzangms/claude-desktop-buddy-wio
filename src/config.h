@@ -41,4 +41,3 @@ static constexpr uint8_t BACKLIGHT_DIM  = 50;
 static constexpr size_t ENTRIES_MAX      = 5;
 static constexpr size_t ENTRY_CHARS_MAX  = 128;
 static constexpr size_t NAME_CHARS_MAX   = 32;
-static constexpr size_t STATUS_ACK_BUF   = 512;

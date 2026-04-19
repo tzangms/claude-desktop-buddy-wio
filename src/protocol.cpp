@@ -1,6 +1,7 @@
 #include "protocol.h"
 #include "config.h"
 #include <ArduinoJson.h>
+#include <cstring>
 
 ParsedMessage parseLine(const std::string& line) {
   ParsedMessage m;
@@ -16,18 +17,13 @@ ParsedMessage parseLine(const std::string& line) {
     m.heartbeat.total   = doc["total"]   | 0;
     m.heartbeat.running = doc["running"] | 0;
     m.heartbeat.waiting = doc["waiting"] | 0;
-    const char* msg = doc["msg"] | "";
-    m.heartbeat.msg = msg;
-    if (doc.containsKey("entries") && doc["entries"].is<JsonArray>()) {
-      JsonArray arr = doc["entries"].as<JsonArray>();
-      size_t n = 0;
-      for (JsonVariant v : arr) {
-        if (n >= ENTRIES_MAX) break;
+    m.heartbeat.msg = doc["msg"] | "";
+    if (doc["entries"].is<JsonArray>()) {
+      m.heartbeat.entries.reserve(ENTRIES_MAX);
+      for (JsonVariant v : doc["entries"].as<JsonArray>()) {
+        if (m.heartbeat.entries.size() >= ENTRIES_MAX) break;
         const char* s = v | "";
-        std::string entry(s);
-        if (entry.size() > ENTRY_CHARS_MAX) entry.resize(ENTRY_CHARS_MAX);
-        m.heartbeat.entries.push_back(std::move(entry));
-        ++n;
+        m.heartbeat.entries.emplace_back(s, strnlen(s, ENTRY_CHARS_MAX));
       }
     }
     m.heartbeat.tokens       = doc["tokens"]       | (int64_t)0;
@@ -41,34 +37,33 @@ ParsedMessage parseLine(const std::string& line) {
     return m;
   }
 
-  if (doc["cmd"] == "owner") {
+  const char* cmd = doc["cmd"] | "";
+  const char* evt = doc["evt"] | "";
+
+  if (!strcmp(cmd, "owner")) {
     m.kind = MessageKind::Owner;
     m.ownerName = doc["name"] | "";
     return m;
   }
-
-  if (doc["evt"] == "turn") {
+  if (!strcmp(evt, "turn")) {
     m.kind = MessageKind::TurnEvent;
     return m;
   }
-
-  if (doc["cmd"] == "status") {
+  if (!strcmp(cmd, "status")) {
     m.kind = MessageKind::StatusCmd;
     return m;
   }
-
-  if (doc["cmd"] == "unpair") {
+  if (!strcmp(cmd, "unpair")) {
     m.kind = MessageKind::UnpairCmd;
     return m;
   }
-
-  if (doc["cmd"] == "name") {
+  if (!strcmp(cmd, "name")) {
     m.kind = MessageKind::NameCmd;
     m.nameValue = doc["name"] | "";
     return m;
   }
 
-  if (doc.containsKey("time") && doc["time"].is<JsonArray>()) {
+  if (doc["time"].is<JsonArray>()) {
     JsonArray a = doc["time"].as<JsonArray>();
     if (a.size() >= 2) {
       m.kind = MessageKind::Time;

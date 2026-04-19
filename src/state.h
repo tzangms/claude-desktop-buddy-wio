@@ -50,7 +50,7 @@ enum class PermissionDecision { Approve, Deny };
 
 // Pure transition functions. Return true if the state changed in a way
 // that requires a re-render.
-bool applyHeartbeat(AppState& s, const HeartbeatData& hb, uint32_t nowMs);
+bool applyHeartbeat(AppState& s, HeartbeatData hb, uint32_t nowMs);
 bool applyOwner(AppState& s, const std::string& name);
 bool applyDisconnect(AppState& s);
 bool applyConnected(AppState& s);
@@ -66,5 +66,5 @@ bool applyTimeouts(AppState& s, uint32_t nowMs);
 // Returns true if accepted, false if rejected. `err` is set on rejection.
 bool applyNameCmd(AppState& s, const std::string& name, std::string& err);
 
-// Store time sync (epoch + tz offset + local millis stamp). Returns true.
-bool applyTime(AppState& s, int64_t epoch, int32_t offsetSec, uint32_t nowMs);
+// Store time sync (epoch + tz offset + local millis stamp).
+void applyTime(AppState& s, int64_t epoch, int32_t offsetSec, uint32_t nowMs);

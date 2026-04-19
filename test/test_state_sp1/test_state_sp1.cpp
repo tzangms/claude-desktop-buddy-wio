@@ -32,8 +32,7 @@ void test_apply_name_truncates() {
 
 void test_apply_time_stores_values() {
   AppState s;
-  bool changed = applyTime(s, 1775731234, -25200, 9876);
-  TEST_ASSERT_TRUE(changed);
+  applyTime(s, 1775731234, -25200, 9876);
   TEST_ASSERT_EQUAL_INT64(1775731234, s.timeEpoch);
   TEST_ASSERT_EQUAL_INT32(-25200, s.timeOffsetSec);
   TEST_ASSERT_EQUAL_UINT32(9876, s.timeSetAtMs);

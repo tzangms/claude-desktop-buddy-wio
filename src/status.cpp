@@ -7,8 +7,11 @@
 #include "state.h"
 #endif
 
+// ArduinoJson v6 internal memory pool; <512 overflows the nested tree.
+static constexpr size_t STATUS_DOC_POOL = 1024;
+
 std::string formatStatusAck(const StatusSnapshot& snap) {
-  StaticJsonDocument<1024> doc;
+  StaticJsonDocument<STATUS_DOC_POOL> doc;
   doc["ack"] = "status";
   doc["ok"] = true;
   JsonObject data = doc.createNestedObject("data");

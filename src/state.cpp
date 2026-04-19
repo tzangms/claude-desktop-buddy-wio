@@ -1,18 +1,17 @@
 #include "state.h"
 #include "config.h"
 
-bool applyHeartbeat(AppState& s, const HeartbeatData& hb, uint32_t nowMs) {
+bool applyHeartbeat(AppState& s, HeartbeatData hb, uint32_t nowMs) {
   Mode prev = s.mode;
   std::string prevPromptId = s.hb.prompt.id;
-  s.hb = hb;
+  bool hasPrompt = hb.hasPrompt;
+  s.hb = std::move(hb);
   s.lastHeartbeatMs = nowMs;
 
-  if (hb.hasPrompt) {
+  if (hasPrompt) {
     s.mode = Mode::Prompt;
-  } else {
-    if (s.mode != Mode::Ack) {
-      s.mode = Mode::Idle;
-    }
+  } else if (s.mode != Mode::Ack) {
+    s.mode = Mode::Idle;
   }
   return s.mode != prev || s.hb.prompt.id != prevPromptId;
 }
@@ -77,9 +76,8 @@ bool applyNameCmd(AppState& s, const std::string& name, std::string& err) {
   return true;
 }
 
-bool applyTime(AppState& s, int64_t epoch, int32_t offsetSec, uint32_t nowMs) {
+void applyTime(AppState& s, int64_t epoch, int32_t offsetSec, uint32_t nowMs) {
   s.timeEpoch = epoch;
   s.timeOffsetSec = offsetSec;
   s.timeSetAtMs = nowMs;
-  return true;
 }
