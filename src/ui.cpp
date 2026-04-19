@@ -77,6 +77,7 @@ void renderIdle(const AppState& s, bool fullRedraw) {
   static std::string lastMsg;
   static std::vector<std::string> lastEntries;
   static PetState lastPet = (PetState)-1;
+  static size_t lastFrame = (size_t)-1;
   static std::string lastOwner;
 
   if (fullRedraw) {
@@ -96,7 +97,7 @@ void renderIdle(const AppState& s, bool fullRedraw) {
     lastLvl = INT32_MIN; lastTokens = INT64_MIN;
     lastTotal = INT32_MIN; lastRunning = INT32_MIN; lastWaiting = INT32_MIN;
     lastMsg.clear(); lastEntries.clear();
-    lastPet = (PetState)-1; lastOwner.clear();
+    lastPet = (PetState)-1; lastFrame = (size_t)-1; lastOwner.clear();
   }
 
   int32_t lvl = persistGet().lvl;
@@ -165,16 +166,22 @@ void renderIdle(const AppState& s, bool fullRedraw) {
 
   PetState st = petComputeState(s);
   if (st != lastPet) {
+    petResetFrame(millis());
+    lastFrame = (size_t)-1;
+  }
+  size_t frame = petCurrentFrame();
+  if (st != lastPet || frame != lastFrame) {
     uint16_t petColour = (st == PetState::Attention) ? COLOR_ALERT_FG : COLOR_OK;
     tft.fillRect(120, 188, 80, 32, COLOR_BG);
     tft.setTextColor(petColour, COLOR_BG);
     tft.setTextSize(1);
-    const char* const* rows = petFace(st);
+    const char* const* rows = petFace(st, frame);
     for (size_t i = 0; i < PET_FACE_LINES; ++i) {
       tft.setCursor(130, 188 + (int)i * 8);
       tft.print(rows[i]);
     }
     lastPet = st;
+    lastFrame = frame;
   }
 
   if (s.ownerName != lastOwner) {
