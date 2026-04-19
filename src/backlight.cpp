@@ -42,8 +42,15 @@ void backlightWake(uint32_t /*nowMs*/) {
   // TODO(Task 4): implement wake-on-activity logic.
 }
 
-void backlightTick(const AppState& /*s*/, uint32_t /*nowMs*/) {
-  // TODO(Task 3): implement idle-sleep logic.
+void backlightTick(const AppState& s, uint32_t nowMs) {
+  if (!awake) return;
+  if (s.mode == Mode::Prompt) {
+    lastActivityMs = nowMs;
+    return;
+  }
+  if ((nowMs - lastActivityMs) < BACKLIGHT_IDLE_MS) return;
+  writePin(false);
+  awake = false;
 }
 
 bool backlightIsAwake() {
