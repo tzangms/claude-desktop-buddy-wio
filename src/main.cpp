@@ -32,11 +32,18 @@ static std::string deviceSuffix() {
 }
 
 static void render(bool force) {
-  bool modeChanged = appState.mode != lastRenderedMode;
-  bool promptChanged = appState.hb.prompt.id != lastRenderedPromptId;
+  // Snapshot mode + prompt at entry. rpcBLE callbacks run in a separate
+  // task and can mutate appState mid-dispatch; if we re-read at the end
+  // lastRenderedMode can end up reflecting the post-race mode, not what
+  // we actually drew, which breaks modeChanged detection on the next
+  // render and skips fullRedraw → prior text lingers in layout gaps.
+  Mode m = appState.mode;
+  std::string pid = appState.hb.prompt.id;
+  bool modeChanged = m != lastRenderedMode;
+  bool promptChanged = pid != lastRenderedPromptId;
   if (!force && !modeChanged && !promptChanged) return;
 
-  switch (appState.mode) {
+  switch (m) {
     case Mode::BleInit:      renderBoot("BLE init..."); break;
     case Mode::Advertising:  {
       std::string n = std::string(DEVICE_NAME_PREFIX) + deviceSuffix();
@@ -50,8 +57,8 @@ static void render(bool force) {
     case Mode::Fatal:        renderFatal("see serial"); break;
     case Mode::FactoryResetConfirm: renderFactoryResetConfirm(modeChanged); break;
   }
-  lastRenderedMode = appState.mode;
-  lastRenderedPromptId = appState.hb.prompt.id;
+  lastRenderedMode = m;
+  lastRenderedPromptId = pid;
 }
 
 static void onLine(const std::string& line) {
@@ -188,6 +195,13 @@ void loop() {
 
   bool conn = isBleConnected();
   if (conn && appState.mode == Mode::Advertising) {
+    applyConnected(appState);
+    render(true);
+  } else if (conn && appState.mode == Mode::Disconnected) {
+    // Recovery path — if applyTimeouts (heartbeat stale >30s) flipped us
+    // to Disconnected but the BLE link is still up, OR a mid-loop
+    // disconnect+reconnect raced, restore Connected so the screen doesn't
+    // linger on Disconnected text until the next heartbeat.
     applyConnected(appState);
     render(true);
   } else if (!conn && (appState.mode == Mode::Idle ||
