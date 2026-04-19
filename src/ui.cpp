@@ -1,6 +1,8 @@
 #include "ui.h"
 #include "config.h"
+#include "persist.h"
 #include <Arduino.h>
+#include <algorithm>
 #include "TFT_eSPI.h"
 
 static TFT_eSPI tft;
@@ -67,10 +69,6 @@ void renderConnected() {
 }
 
 void renderIdle(const AppState& s, bool fullRedraw) {
-  // Full redraw only on mode transition; subsequent heartbeat updates
-  // skip the fillScreen clear to avoid a visible flash. Changing cells
-  // (numbers, msg, footer) use targeted fillRects so digit-count changes
-  // don't leave ghost pixels.
   if (fullRedraw) {
     clearAll();
     drawHeader("Claude Buddy", COLOR_BG, COLOR_FG);
@@ -79,32 +77,65 @@ void renderIdle(const AppState& s, bool fullRedraw) {
     tft.setTextSize(1);
     tft.setCursor(SCREEN_W - 100, 10);
     tft.print("connected");
-    tft.setCursor(28, 50);   tft.print("Total");
-    tft.setCursor(130, 50);  tft.print("Running");
-    tft.setCursor(240, 50);  tft.print("Waiting");
+    tft.setCursor(8, 36);                tft.print("Level");
+    tft.setCursor(SCREEN_W - 120, 36);   tft.print("Tokens today");
+    tft.setCursor(28, 66);   tft.print("Total");
+    tft.setCursor(130, 66);  tft.print("Running");
+    tft.setCursor(240, 66);  tft.print("Waiting");
   }
 
-  // Number cells — clear first so 2-digit→1-digit doesn't leave a ghost
-  // digit. Size 5 text is ~30px per char; allocate 90px per cell.
+  // Level + tokens row
+  tft.fillRect(8, 46, 60, 14, COLOR_BG);
+  tft.setTextColor(COLOR_FG, COLOR_BG);
+  tft.setTextSize(2);
+  char lvlBuf[8];
+  snprintf(lvlBuf, sizeof(lvlBuf), "L%d", persistGet().lvl);
+  tft.setCursor(8, 46);
+  tft.print(lvlBuf);
+
+  tft.fillRect(SCREEN_W - 120, 46, 112, 14, COLOR_BG);
+  tft.setCursor(SCREEN_W - 120, 46);
+  char tokBuf[16];
+  int64_t t = s.hb.tokens_today;
+  if (t < 1000) {
+    snprintf(tokBuf, sizeof(tokBuf), "%d t", (int)t);
+  } else if (t < 100000) {
+    snprintf(tokBuf, sizeof(tokBuf), "%.1f kt", (double)t / 1000.0);
+  } else {
+    snprintf(tokBuf, sizeof(tokBuf), "%d kt", (int)(t / 1000));
+  }
+  tft.print(tokBuf);
+
+  // Big numbers — size 5 ~30px per char; 90px per cell.
   tft.setTextColor(COLOR_FG, COLOR_BG);
   tft.setTextSize(5);
   auto drawNum = [](int x, int n) {
-    tft.fillRect(x, 65, 90, 50, COLOR_BG);
+    tft.fillRect(x, 80, 90, 40, COLOR_BG);
     char buf[8]; snprintf(buf, sizeof(buf), "%d", n);
-    tft.setCursor(x, 70); tft.print(buf);
+    tft.setCursor(x, 82); tft.print(buf);
   };
   drawNum(38,  s.hb.total);
   drawNum(148, s.hb.running);
   drawNum(258, s.hb.waiting);
 
   // msg line
-  tft.fillRect(0, 160, SCREEN_W, 20, COLOR_BG);
+  tft.fillRect(0, 125, SCREEN_W, 14, COLOR_BG);
   tft.setTextColor(COLOR_FG, COLOR_BG);
   tft.setTextSize(1);
-  tft.setCursor(8, 165);
+  tft.setCursor(8, 128);
   tft.print(s.hb.msg.c_str());
 
-  // footer
+  // Transcript (up to 3 lines)
+  tft.fillRect(0, 145, SCREEN_W, 70, COLOR_BG);
+  tft.setTextColor(COLOR_DIM, COLOR_BG);
+  tft.setTextSize(1);
+  size_t n = std::min(s.hb.entries.size(), (size_t)3);
+  for (size_t i = 0; i < n; ++i) {
+    tft.setCursor(8, 148 + (int)i * 22);
+    tft.print(s.hb.entries[i].c_str());
+  }
+
+  // Footer: owner greeting
   if (!s.ownerName.empty()) {
     char buf[64];
     snprintf(buf, sizeof(buf), "Hi, %s", s.ownerName.c_str());
