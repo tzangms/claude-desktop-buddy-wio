@@ -15,9 +15,10 @@ struct __attribute__((packed)) PersistData {
   int64_t  deviceLifetimeTokens;
   char     deviceName[33];
   char     ownerName[33];
+  char     activeCharName[33];
 };
 
-static_assert(sizeof(PersistData) == 110,
+static_assert(sizeof(PersistData) == 143,
               "PersistData file format: bump PERSIST_VERSION if this changes");
 
 void persistInit();
@@ -33,6 +34,9 @@ void persistSetOwnerName(const char* name);
 void persistIncAppr();
 void persistIncDeny();
 
+void persistSetActiveChar(const char* name);
+const char* persistGetActiveChar();
+
 // Reset persisted data to defaults and flush immediately. Caller usually
 // follows with a system reset to re-run setup() with fresh state.
 void persistFactoryReset();
@@ -42,4 +46,7 @@ const uint8_t* _persistFakeFile();
 size_t _persistFakeFileSize();
 void _persistResetFakeFile();
 int _persistWriteCount();
+// Test-only: overwrite the native fake flash with arbitrary bytes so
+// tests can simulate pre-migration blobs.
+void _persistSeedFakeFile(const uint8_t* bytes, size_t n);
 #endif

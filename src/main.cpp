@@ -11,6 +11,7 @@
 #include "persist.h"
 #include "pet.h"
 #include "xfer.h"
+#include "manifest.h"
 
 static AppState appState;
 static Mode lastRenderedMode = Mode::BleInit;
@@ -143,6 +144,9 @@ void setup() {
   initButtons();
   backlightInit();
   persistInit();
+  if (persistGetActiveChar()[0] != '\0') {
+    manifestSetActive(persistGetActiveChar());  // best-effort
+  }
   xferInit();
   if (persistGet().deviceName[0] == '\0') {
     std::string def = std::string(DEVICE_NAME_PREFIX) + deviceSuffix();

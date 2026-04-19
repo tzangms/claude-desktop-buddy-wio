@@ -1,5 +1,6 @@
 #include "xfer.h"
 #include "config.h"
+#include "manifest.h"
 
 #include <cstring>
 #include <cctype>
@@ -8,6 +9,7 @@
 #include <Arduino.h>
 #include <Seeed_Arduino_FS.h>
 #include <Seeed_SFUD.h>
+#include "persist.h"
 #else
 #include <vector>
 #include <string>
@@ -214,7 +216,12 @@ bool xferEndFile(int64_t& finalSize) {
 bool xferEndChar() {
   if (state != State::CharOpen) return false;
   state = State::Idle;
-  // charName stays until next char_begin so active-name query works.
+#ifdef ARDUINO
+  // charName is still latched; treat a bad/missing manifest as an upload
+  // failure so the host can retry. Prior active char is preserved.
+  if (!manifestSetActive(charName)) return false;
+  persistSetActiveChar(charName);
+#endif
   return true;
 }
 
