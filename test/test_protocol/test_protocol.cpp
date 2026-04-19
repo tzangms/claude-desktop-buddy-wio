@@ -174,6 +174,12 @@ void test_format_ack_err() {
 void test_format_status_ack_shape() {
   StatusSnapshot snap;
   snap.name = "Claude-52DA";
+  snap.ownerName = "Felix";
+  snap.appr = 42;
+  snap.deny = 3;
+  snap.lvl = 5;
+  snap.nap = 12;
+  snap.vel = 8;
   snap.sec = false;
   snap.upSec = 12;
   snap.heapFree = 80000;
@@ -185,7 +191,11 @@ void test_format_status_ack_shape() {
   TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("usb":true)"));
   TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("up":12)"));
   TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("heap":80000)"));
-  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("lvl":0)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("appr":42)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("deny":3)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("lvl":5)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("nap":12)"));
+  TEST_ASSERT_NOT_NULL(strstr(out.c_str(), R"("vel":8)"));
   TEST_ASSERT_EQUAL('\n', out.back());
 }
 

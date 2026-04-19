@@ -7,6 +7,8 @@
 #include "state.h"
 #endif
 
+#include "persist.h"
+
 // ArduinoJson v6 internal memory pool; <512 overflows the nested tree.
 static constexpr size_t STATUS_DOC_POOL = 1024;
 
@@ -29,11 +31,11 @@ std::string formatStatusAck(const StatusSnapshot& snap) {
   sys["heap"] = snap.heapFree;
 
   JsonObject stats = data.createNestedObject("stats");
-  stats["appr"] = 0;
-  stats["deny"] = 0;
-  stats["vel"]  = 0;
-  stats["nap"]  = 0;
-  stats["lvl"]  = 0;
+  stats["appr"] = snap.appr;
+  stats["deny"] = snap.deny;
+  stats["vel"]  = snap.vel;
+  stats["nap"]  = snap.nap;
+  stats["lvl"]  = snap.lvl;
 
   std::string out;
   serializeJson(doc, out);
@@ -42,12 +44,19 @@ std::string formatStatusAck(const StatusSnapshot& snap) {
 }
 
 #ifdef ARDUINO
-StatusSnapshot captureStatus(const AppState& s, uint32_t nowMs) {
+StatusSnapshot captureStatus(const AppState& /*s*/, uint32_t nowMs) {
+  const PersistData& p = persistGet();
   StatusSnapshot snap;
-  snap.name = s.deviceName;
-  snap.sec = false;
-  snap.upSec = nowMs / 1000;
-  snap.heapFree = freeHeapBytes();
+  snap.name      = p.deviceName;
+  snap.ownerName = p.ownerName;
+  snap.appr      = p.appr;
+  snap.deny      = p.deny;
+  snap.lvl       = p.lvl;
+  snap.nap       = p.nap;
+  snap.vel       = p.vel;
+  snap.sec       = false;
+  snap.upSec     = nowMs / 1000;
+  snap.heapFree  = freeHeapBytes();
   return snap;
 }
 #endif
