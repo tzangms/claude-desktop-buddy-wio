@@ -27,6 +27,13 @@ void characterTick(uint32_t nowMs);
 // Next characterTick will reopen and repaint.
 void characterInvalidate();
 
+// Called after the active manifest has been swapped via manifestSetActive.
+// Closes any open GIF, resets the internal state-tracking so the next
+// characterSetState() call opens a fresh file from the new manifest, and
+// re-runs characterInit-style validation to update characterReady().
+// On native, a no-op.
+void characterRefreshManifest();
+
 #ifndef ARDUINO
 // Test-only: expose the pure pick-file logic and let tests drive time
 // without building a real AnimatedGIF pipeline.

@@ -6,10 +6,6 @@
 
 #include <cstring>
 
-// Forward-declared here so Task 3 can land before Task 5's character.h edit.
-// Task 5 promotes this into character.h and removes this extern.
-extern void characterRefreshManifest();
-
 #ifdef ARDUINO
 #include <Arduino.h>
 #include <Seeed_Arduino_FS.h>
