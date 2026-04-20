@@ -13,6 +13,7 @@
 #include "xfer.h"
 #include "manifest.h"
 #include "character.h"
+#include "carousel.h"
 
 static AppState appState;
 static Mode lastRenderedMode = Mode::BleInit;
@@ -246,6 +247,13 @@ void loop() {
         lastButtonSendMs = now;
         render(true);
       }
+    } else if ((e == ButtonEvent::PressLeft || e == ButtonEvent::PressRight) &&
+               appState.mode == Mode::Idle) {
+      bool forward = (e == ButtonEvent::PressRight);
+      if (carouselAdvance(appState, forward, now)) {
+        lastButtonSendMs = now;
+        render(true);
+      }
     }
   }
 
@@ -274,6 +282,22 @@ void loop() {
   // petTickFrame still advances PetState animation for the ASCII fallback.
   bool petAdvanced = petTickFrame(now);
   if (petAdvanced && appState.mode == Mode::Idle) pendingRender = true;
+
+  // Overlay expiry: when the deadline first passes, force a full redraw
+  // so the strip over the buddy region gets repainted with fresh GIF
+  // content (the overlay paint block in renderIdle is self-gated on the
+  // deadline, so this extra repaint cleans up the strip).
+  static uint32_t lastOverlayDeadline = 0;
+  if (appState.buddyOverlayUntilMs != lastOverlayDeadline) {
+    lastOverlayDeadline = appState.buddyOverlayUntilMs;
+  } else if (lastOverlayDeadline != 0 && now >= lastOverlayDeadline) {
+    lastOverlayDeadline = 0;
+    appState.buddyOverlayUntilMs = 0;
+    if (appState.mode == Mode::Idle) {
+      characterInvalidate();  // force GIF reopen after repaint
+      pendingRender = true;
+    }
+  }
 
   delay(10);
 }
