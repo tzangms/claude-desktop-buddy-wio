@@ -266,6 +266,8 @@ void characterInvalidate() {
 void characterInvalidate() {}
 #endif
 
+void characterRefreshManifest() {}
+
 #ifndef ARDUINO
 const char* _characterPickFile(PetState state, uint32_t nowMs) {
   // State transition → reset variant bookkeeping so a re-entry starts

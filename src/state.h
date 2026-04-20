@@ -47,6 +47,8 @@ struct AppState {
   uint32_t promptArrivedMs = 0;
   bool ackApproved = false;
   uint32_t ackUntilMs = 0;
+  uint32_t buddyOverlayUntilMs = 0;
+  char     buddyOverlayName[33] = {0};
 };
 
 enum class PermissionDecision { Approve, Deny };

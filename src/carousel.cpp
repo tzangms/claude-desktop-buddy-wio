@@ -6,6 +6,10 @@
 
 #include <cstring>
 
+// Forward-declared here so Task 3 can land before Task 5's character.h edit.
+// Task 5 promotes this into character.h and removes this extern.
+extern void characterRefreshManifest();
+
 #ifdef ARDUINO
 #include <Arduino.h>
 #include <Seeed_Arduino_FS.h>
@@ -55,6 +59,29 @@ size_t carouselEnumerate(CarouselName* out, size_t max) {
 #endif
 }
 
-bool carouselAdvance(AppState& /*s*/, bool /*forward*/, uint32_t /*nowMs*/) {
-  return false;  // TDD placeholder; real impl lands in Task 3.
+bool carouselAdvance(AppState& s, bool forward, uint32_t nowMs) {
+  CarouselName names[CAROUSEL_MAX_CHARS];
+  size_t n = carouselEnumerate(names, CAROUSEL_MAX_CHARS);
+  if (n == 0) return false;
+
+  const char* curr = persistGetActiveChar();
+  size_t idx = 0;
+  for (size_t i = 0; i < n; ++i) {
+    if (std::strcmp(names[i], curr) == 0) { idx = i; break; }
+  }
+
+  size_t newIdx = idx;
+  if (n >= 2) {
+    if (forward) newIdx = (idx + 1) % n;
+    else         newIdx = (idx + n - 1) % n;
+
+    persistSetActiveChar(names[newIdx]);
+    manifestSetActive(names[newIdx]);   // native stub returns false; harmless
+    characterRefreshManifest();         // native stub; Arduino closes + reopens
+  }
+
+  std::strncpy(s.buddyOverlayName, names[newIdx], MANIFEST_NAME_MAX);
+  s.buddyOverlayName[MANIFEST_NAME_MAX] = '\0';
+  s.buddyOverlayUntilMs = nowMs + BUDDY_OVERLAY_MS;
+  return true;
 }
