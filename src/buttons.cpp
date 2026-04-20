@@ -15,6 +15,8 @@ static Btn btns[] = {
   {WIO_KEY_B,    true, true, 0, ButtonEvent::PressB},
   {WIO_KEY_C,    true, true, 0, ButtonEvent::PressC},
   {WIO_5S_PRESS, true, true, 0, ButtonEvent::PressNav},
+  {WIO_5S_LEFT,  true, true, 0, ButtonEvent::PressLeft},
+  {WIO_5S_RIGHT, true, true, 0, ButtonEvent::PressRight},
 };
 
 // Long-press tracking for the 5-way center (last entry in btns[]).
