@@ -9,8 +9,10 @@ struct AppState;
 static constexpr size_t CAROUSEL_MAX_CHARS = 16;
 using CarouselName = char[MANIFEST_NAME_MAX + 1];
 
-// Enumerate `/chars/` subdirectories into `out` (alphabetical order,
-// capped at `max` entries). Returns count written. ARDUINO reads SFUD;
+// Enumerate `/chars/` subdirectories into `out` (alphabetical order).
+// `out` MUST point to a buffer with at least CAROUSEL_MAX_CHARS entries
+// (the implementation may write up to that many before capping to `max`).
+// Returns count written, capped at `max`. ARDUINO reads SFUD;
 // native returns whatever `_carouselSetFakeChars` last injected.
 size_t carouselEnumerate(CarouselName* out, size_t max);
 
