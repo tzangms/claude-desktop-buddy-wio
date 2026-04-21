@@ -266,6 +266,45 @@ void characterInvalidate() {
 void characterInvalidate() {}
 #endif
 
+#ifdef ARDUINO
+void characterRefreshManifest() {
+  // 1. Close any open decoder.
+  if (gifOpen) { gif.close(); gifOpen = false; }
+  animPauseUntil = 0;
+  nextFrameAt    = 0;
+
+  // 2. Reset state-tracking so caller's subsequent characterSetState()
+  //    (even to the same PetState) re-opens a file.
+  hasCurState  = false;
+  variantIdx   = 0;
+  variantStart = 0;
+  curState     = PetState::Sleep;
+
+  // 3. Re-validate readiness against the *new* manifest using the same
+  //    cheap header-only open/close loop as characterInit.
+  ready = false;
+  const CharManifest* m = manifestActive();
+  if (!m) return;
+
+  gif.begin(LITTLE_ENDIAN_PIXELS);
+  bool anyOk = false;
+  for (int i = 0; i < MANIFEST_STATE_COUNT; ++i) {
+    if (m->stateVariantCount[i] == 0) continue;
+    char path[96];
+    std::snprintf(path, sizeof(path), "/chars/%s/%s",
+                  m->name, m->states[i][0]);
+    if (!gif.open(path, gifOpenCb, gifCloseCb, gifReadCb, gifSeekCb, gifDrawCb)) {
+      continue;
+    }
+    gif.close();
+    anyOk = true;
+  }
+  ready = anyOk;
+}
+#else
+void characterRefreshManifest() {}
+#endif
+
 #ifndef ARDUINO
 const char* _characterPickFile(PetState state, uint32_t nowMs) {
   // State transition → reset variant bookkeeping so a re-entry starts

@@ -209,6 +209,17 @@ void renderIdle(const AppState& s, bool fullRedraw) {
     }
     lastOwner = s.ownerName;
   }
+
+  // Carousel name overlay: shows the char name for BUDDY_OVERLAY_MS after a
+  // left/right press. Strip covers the top of the buddy region; main loop
+  // triggers a full redraw on expiry to restore the underlying GIF.
+  if (millis() < s.buddyOverlayUntilMs && s.buddyOverlayName[0] != '\0') {
+    tft.fillRect(BUDDY_X, BUDDY_Y, BUDDY_W, 12, COLOR_BG);
+    tft.setTextColor(COLOR_FG, COLOR_BG);
+    tft.setTextSize(1);
+    tft.setCursor(BUDDY_X + 2, BUDDY_Y + 2);
+    tft.print(s.buddyOverlayName);
+  }
 }
 
 void renderPrompt(const AppState& s, bool fullRedraw) {

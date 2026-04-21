@@ -68,3 +68,6 @@ static constexpr int BUDDY_H = 100;
 // Idle variant rotation (per reference character.cpp).
 static constexpr uint32_t VARIANT_DWELL_MS = 5000;  // min time per variant
 static constexpr uint32_t ANIM_PAUSE_MS    = 800;   // pause between variants
+
+// --- Carousel ---
+static constexpr uint32_t BUDDY_OVERLAY_MS = 1500;
