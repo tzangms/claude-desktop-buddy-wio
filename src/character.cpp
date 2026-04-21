@@ -137,6 +137,27 @@ namespace {
     variantStart = nowMs;
     return true;
   }
+
+  // Cheap header-only probe: open-then-close every populated state's first
+  // variant. Returns true if at least one opens as a valid GIF.
+  bool validateManifestGifs(const CharManifest* m) {
+    gif.begin(LITTLE_ENDIAN_PIXELS);
+    bool anyOk = false;
+    for (int i = 0; i < MANIFEST_STATE_COUNT; ++i) {
+      if (m->stateVariantCount[i] == 0) continue;
+      char path[96];
+      std::snprintf(path, sizeof(path), "/chars/%s/%s",
+                    m->name, m->states[i][0]);
+      if (!gif.open(path, gifOpenCb, gifCloseCb, gifReadCb, gifSeekCb, gifDrawCb)) {
+        Serial.print("[char] bad gif: ");
+        Serial.println(path);
+        continue;
+      }
+      gif.close();
+      anyOk = true;
+    }
+    return anyOk;
+  }
 #endif
 }
 
@@ -147,26 +168,7 @@ void characterInit() {
   ready = false;
   const CharManifest* m = manifestActive();
   if (!m) return;
-
-  // Validate first-variant file for each populated state opens as a GIF.
-  // Header-only: open → close. Cheap.
-  gif.begin(LITTLE_ENDIAN_PIXELS);
-  bool anyOk = false;
-  for (int i = 0; i < MANIFEST_STATE_COUNT; ++i) {
-    if (m->stateVariantCount[i] == 0) continue;
-    char path[96];
-    std::snprintf(path, sizeof(path), "/chars/%s/%s",
-                  m->name, m->states[i][0]);
-    if (!gif.open(path, gifOpenCb, gifCloseCb, gifReadCb, gifSeekCb, gifDrawCb)) {
-      Serial.print("[char] bad gif: ");
-      Serial.println(path);
-      continue;
-    }
-    gif.close();
-    anyOk = true;
-  }
-
-  ready = anyOk;
+  ready = validateManifestGifs(m);
   if (ready) {
     Serial.print("[char] ready: ");
     Serial.println(m->name);
@@ -268,38 +270,21 @@ void characterInvalidate() {}
 
 #ifdef ARDUINO
 void characterRefreshManifest() {
-  // 1. Close any open decoder.
   if (gifOpen) { gif.close(); gifOpen = false; }
   animPauseUntil = 0;
   nextFrameAt    = 0;
 
-  // 2. Reset state-tracking so caller's subsequent characterSetState()
-  //    (even to the same PetState) re-opens a file.
+  // Reset state so the next characterSetState() reopens a file even when
+  // the PetState is unchanged from before the swap.
   hasCurState  = false;
   variantIdx   = 0;
   variantStart = 0;
   curState     = PetState::Sleep;
 
-  // 3. Re-validate readiness against the *new* manifest using the same
-  //    cheap header-only open/close loop as characterInit.
   ready = false;
   const CharManifest* m = manifestActive();
   if (!m) return;
-
-  gif.begin(LITTLE_ENDIAN_PIXELS);
-  bool anyOk = false;
-  for (int i = 0; i < MANIFEST_STATE_COUNT; ++i) {
-    if (m->stateVariantCount[i] == 0) continue;
-    char path[96];
-    std::snprintf(path, sizeof(path), "/chars/%s/%s",
-                  m->name, m->states[i][0]);
-    if (!gif.open(path, gifOpenCb, gifCloseCb, gifReadCb, gifSeekCb, gifDrawCb)) {
-      continue;
-    }
-    gif.close();
-    anyOk = true;
-  }
-  ready = anyOk;
+  ready = validateManifestGifs(m);
 }
 #else
 void characterRefreshManifest() {}

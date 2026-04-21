@@ -283,10 +283,8 @@ void loop() {
   bool petAdvanced = petTickFrame(now);
   if (petAdvanced && appState.mode == Mode::Idle) pendingRender = true;
 
-  // Overlay expiry: when the deadline first passes, force a full redraw
-  // so the strip over the buddy region gets repainted with fresh GIF
-  // content (the overlay paint block in renderIdle is self-gated on the
-  // deadline, so this extra repaint cleans up the strip).
+  // First pass caches the new deadline; second pass fires the cleanup redraw
+  // once the deadline has lapsed so the overlay strip stops covering the GIF.
   static uint32_t lastOverlayDeadline = 0;
   if (appState.buddyOverlayUntilMs != lastOverlayDeadline) {
     lastOverlayDeadline = appState.buddyOverlayUntilMs;
@@ -294,7 +292,7 @@ void loop() {
     lastOverlayDeadline = 0;
     appState.buddyOverlayUntilMs = 0;
     if (appState.mode == Mode::Idle) {
-      characterInvalidate();  // force GIF reopen after repaint
+      characterInvalidate();
       pendingRender = true;
     }
   }

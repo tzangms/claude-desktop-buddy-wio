@@ -210,9 +210,8 @@ void renderIdle(const AppState& s, bool fullRedraw) {
     lastOwner = s.ownerName;
   }
 
-  // Carousel name overlay: shows the char name for BUDDY_OVERLAY_MS after a
-  // left/right press. Strip covers the top of the buddy region; main loop
-  // triggers a full redraw on expiry to restore the underlying GIF.
+  // Carousel name strip. Main loop's overlay-expiry handler forces a redraw
+  // when the deadline lapses so the GIF underneath can repaint cleanly.
   if (millis() < s.buddyOverlayUntilMs && s.buddyOverlayName[0] != '\0') {
     tft.fillRect(BUDDY_X, BUDDY_Y, BUDDY_W, 12, COLOR_BG);
     tft.setTextColor(COLOR_FG, COLOR_BG);
